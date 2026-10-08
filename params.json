@@ -1,129 +1,212 @@
 {
   "MLS": {
-    "params": { "homeAdvantage": 1.3030632581862822, "rho": -0.3455066666666665 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.303,
+      "rho": -0.07
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-07T03:18:57.932Z",
-    "error": 0.061383333333333456
+    "ultima": "2026-10-07T03:18:57.932Z"
   },
-
   "CPA": {
-    "params": { "homeAdvantage": 1.2627204708821205, "rho": -0.26054666666666654 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.263,
+      "rho": -0.095
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:51:12.452Z",
-    "error": 0.046399999999999775
+    "ultima": "2026-10-05T16:51:12.452Z"
   },
   "ELC": {
-    "params": { "homeAdvantage": 1.1420262329069433, "rho": -0.30092 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.142,
+      "rho": -0.078
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:27:07.621Z",
-    "error": 0.03903333333333325
+    "ultima": "2026-10-05T16:27:07.621Z"
   },
   "DED": {
-    "params": { "homeAdvantage": 1.1125843757099965, "rho": -0.24498666666666677 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.113,
+      "rho": -0.072
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:27:50.968Z",
-    "error": 0.030066666666666797
+    "ultima": "2026-10-05T16:27:50.968Z"
   },
   "BSA": {
-    "params": { "homeAdvantage": 1.3174409641462648, "rho": -0.1593333333333334 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.317,
+      "rho": -0.09
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:29:08.532Z",
-    "error": 0.027449999999999974
+    "ultima": "2026-10-05T16:29:08.532Z"
   },
   "PPT": {
-    "params": { "homeAdvantage": 1.3725017405208106, "rho": -0.35 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.373,
+      "rho": -0.08
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:29:35.506Z",
-    "error": 0.13578333333333317
+    "ultima": "2026-10-05T16:29:35.506Z"
   },
   "FL1": {
-    "params": { "homeAdvantage": 1.2029942178910273, "rho": -0.17634666666666696 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.203,
+      "rho": -0.105
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:30:06.261Z",
-    "error": 0.021483333333333632
+    "ultima": "2026-10-05T16:30:06.261Z"
   },
   "MXL": {
-    "params": { "homeAdvantage": 1.2813653905772364, "rho": -0.08181333333333322 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.281,
+      "rho": -0.082
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T14:38:38.983Z",
-    "error": 0.01846666666666652
+    "ultima": "2026-10-05T14:38:38.983Z"
   },
   "ELITE": {
-    "params": { "homeAdvantage": 1.2848782165726724, "rho": 0.14600000000000007 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.285,
+      "rho": -0.08
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:30:27.150Z",
-    "error": 0.02663333333333337
+    "ultima": "2026-10-05T16:30:27.150Z"
   },
   "ALLSV": {
-    "params": { "homeAdvantage": 1.0932850804052132, "rho": -0.02894666666666675 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.093,
+      "rho": -0.029
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:31:03.884Z",
-    "error": 0.018616666666666754
+    "ultima": "2026-10-05T16:31:03.884Z"
   },
   "JPL": {
-    "params": { "homeAdvantage": 1.085232615462878, "rho": 0.06851999999999986 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.085,
+      "rho": -0.082
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:31:44.675Z",
-    "error": 0.0219166666666665
+    "ultima": "2026-10-05T16:31:44.675Z"
   },
   "PL": {
-    "params": { "homeAdvantage": 1.0777144349578844, "rho": -0.24654666666666647 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.078,
+      "rho": -0.065
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T02:32:46.992Z",
-    "error": 0.02738333333333326
+    "ultima": "2026-10-05T02:32:46.992Z"
   },
   "BL1": {
-    "params": { "homeAdvantage": 1.1849914970994442, "rho": -0.16928000000000007 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.185,
+      "rho": -0.085
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T02:42:26.829Z",
-    "error": 0.021316666666666872
+    "ultima": "2026-10-05T02:42:26.829Z"
   },
   "SA": {
-    "params": { "homeAdvantage": 1.0872698939226229, "rho": 0.1004400000000002 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.087,
+      "rho": -0.13
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T03:05:16.595Z",
-    "error": 0.030699999999999922
+    "ultima": "2026-10-05T03:05:16.595Z"
   },
   "PD": {
-    "params": { "homeAdvantage": 1.4189663663319327, "rho": -0.03797333333333312 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.419,
+      "rho": -0.038
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T13:41:33.345Z",
-    "error": 0.023549999999999766
+    "ultima": "2026-10-05T13:41:33.345Z"
   },
   "BSB": {
-    "params": { "homeAdvantage": 1.434566848425843, "rho": 0.03292000000000018 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.435,
+      "rho": -0.092
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T01:46:14.579Z",
-    "error": 0.015316666666666728
+    "ultima": "2026-10-05T01:46:14.579Z"
   },
   "EKS": {
-    "params": { "homeAdvantage": 1.2289304216204917, "rho": -0.061053333333333355 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.229,
+      "rho": -0.061
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T15:15:02.624Z",
-    "error": 0.019966666666666966
+    "ultima": "2026-10-05T15:15:02.624Z"
   },
   "SPL": {
-    "params": { "homeAdvantage": 1.1645985906855, "rho": -0.09061333333333338 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.165,
+      "rho": -0.091
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T02:13:35.692Z",
-    "error": 0.01998333333333313
+    "ultima": "2026-10-05T02:13:35.692Z"
   },
   "SUI1": {
-    "params": { "homeAdvantage": 1.05, "rho": -0.13 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.05,
+      "rho": -0.13
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T15:42:21.276Z",
-    "error": 0.004416666666666652
+    "ultima": "2026-10-05T15:42:21.276Z"
   },
   "ABL": {
-    "params": { "homeAdvantage": 1.438750059304357, "rho": -0.12417142857142839 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.439,
+      "rho": -0.124
+    },
     "partidosCalibrados": 42,
-    "ultima": "2026-10-05T15:48:56.628Z",
-    "error": 0.045357142857142735
+    "ultima": "2026-10-05T15:48:56.628Z"
   },
   "ARG": {
-    "params": { "homeAdvantage": 1.1963667619210498, "rho": -0.028040000000000013 },
+    "v": 2,
+    "saneado": true,
+    "params": {
+      "homeAdvantage": 1.196,
+      "rho": -0.028
+    },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T01:20:12.304Z",
-    "error": 0.014983333333333404
+    "ultima": "2026-10-05T01:20:12.304Z"
   }
 }
