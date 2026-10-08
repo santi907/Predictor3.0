@@ -1,212 +1,34 @@
 {
-  "MLS": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.303,
-      "rho": -0.07
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-07T03:18:57.932Z"
-  },
-  "CPA": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.263,
-      "rho": -0.095
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:51:12.452Z"
-  },
-  "ELC": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.142,
-      "rho": -0.078
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:27:07.621Z"
-  },
-  "DED": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.113,
-      "rho": -0.072
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:27:50.968Z"
-  },
   "BSA": {
     "v": 2,
-    "saneado": true,
     "params": {
-      "homeAdvantage": 1.317,
-      "rho": -0.09
+      "homeAdvantage": 1.29,
+      "rho": -0.11,
+      "goalsAvg": 2.608
+    },
+    "tasas": {
+      "homeRate": 0.455,
+      "drawRate": 0.28,
+      "awayRate": 0.265
     },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:29:08.532Z"
+    "ultima": "2026-10-08T19:58:07.291Z",
+    "error": 0.06087999999999988
   },
   "PPT": {
     "v": 2,
-    "saneado": true,
     "params": {
-      "homeAdvantage": 1.373,
-      "rho": -0.08
+      "homeAdvantage": 1.26,
+      "rho": -0.05,
+      "goalsAvg": 2.655
+    },
+    "tasas": {
+      "homeRate": 0.42,
+      "drawRate": 0.295,
+      "awayRate": 0.285
     },
     "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:29:35.506Z"
-  },
-  "FL1": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.203,
-      "rho": -0.105
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:30:06.261Z"
-  },
-  "MXL": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.281,
-      "rho": -0.082
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T14:38:38.983Z"
-  },
-  "ELITE": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.285,
-      "rho": -0.08
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:30:27.150Z"
-  },
-  "ALLSV": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.093,
-      "rho": -0.029
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:31:03.884Z"
-  },
-  "JPL": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.085,
-      "rho": -0.082
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T16:31:44.675Z"
-  },
-  "PL": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.078,
-      "rho": -0.065
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T02:32:46.992Z"
-  },
-  "BL1": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.185,
-      "rho": -0.085
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T02:42:26.829Z"
-  },
-  "SA": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.087,
-      "rho": -0.13
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T03:05:16.595Z"
-  },
-  "PD": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.419,
-      "rho": -0.038
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T13:41:33.345Z"
-  },
-  "BSB": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.435,
-      "rho": -0.092
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T01:46:14.579Z"
-  },
-  "EKS": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.229,
-      "rho": -0.061
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T15:15:02.624Z"
-  },
-  "SPL": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.165,
-      "rho": -0.091
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T02:13:35.692Z"
-  },
-  "SUI1": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.05,
-      "rho": -0.13
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T15:42:21.276Z"
-  },
-  "ABL": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.439,
-      "rho": -0.124
-    },
-    "partidosCalibrados": 42,
-    "ultima": "2026-10-05T15:48:56.628Z"
-  },
-  "ARG": {
-    "v": 2,
-    "saneado": true,
-    "params": {
-      "homeAdvantage": 1.196,
-      "rho": -0.028
-    },
-    "partidosCalibrados": 200,
-    "ultima": "2026-10-05T01:20:12.304Z"
+    "ultima": "2026-10-08T20:23:37.201Z",
+    "error": 0.11527058823529443
   }
 }
