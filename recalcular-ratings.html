@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recalcular ratings — Visión Verde</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+
+    <header class="hero">
+      <svg class="corner-graphic" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M15 15 H85" />
+        <path d="M15 15 V85" />
+        <path d="M15 35 A20 20 0 0 1 35 15" />
+      </svg>
+      <h1>Ratings</h1>
+      <p class="tagline">Recalcula ataque/defensa de cada equipo pesando los partidos recientes más que los viejos.</p>
+    </header>
+
+    <section class="panel">
+      <h2 class="panel-title">1. Cargar historial</h2>
+      <label for="historial-file">Archivo generado por "Exportar historial" (.json)</label>
+      <input type="file" id="historial-file" accept="application/json,.json">
+      <p id="file-info" class="tagline" style="margin:10px 0 0; text-align:left; font-size:0.85rem;"></p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">2. Ajustes</h2>
+      <div class="field">
+        <label for="halflife">Vida media (días) — a los N días, un partido pesa la mitad que hoy</label>
+        <input type="number" id="halflife" value="60" min="7" max="365">
+      </div>
+      <div class="field">
+        <label for="minmatches">Mínimo de partidos por equipo para recalcularlo (si tiene menos, se deja el rating viejo)</label>
+        <input type="number" id="minmatches" value="3" min="1" max="20">
+      </div>
+      <button id="run-btn" class="btn-primary" disabled>Recalcular</button>
+    </section>
+
+    <section id="results" class="results" style="display:none;">
+      <h2 class="panel-title">Resultado</h2>
+      <div id="results-content"></div>
+    </section>
+
+  </div>
+
+  <script type="module" src="recalcular-ratings.js"></script>
+</body>
+</html>

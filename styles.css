@@ -1,0 +1,600 @@
+/* ============================================================================
+   SCOREPRO — Estilo atractivo
+   ========================================================================== */
+
+:root {
+  /* Fondo con profundidad */
+  --bg: #0d1117;
+  --bg-2: #111820;
+  --surface: #161d27;
+  --surface-2: #1c2530;
+  --surface-hover: #212b38;
+  --line: #2a3444;
+  --line-soft: #1e2632;
+
+  /* Texto */
+  --text: #f0f3f7;
+  --text-dim: #8b95a5;
+  --text-faint: #5a6474;
+
+  /* Acentos */
+  --green: #00d97e;
+  --green-soft: rgba(0, 217, 126, 0.12);
+  --yellow: #ffb700;
+  --yellow-soft: rgba(255, 183, 0, 0.12);
+  --red: #ff4757;
+  --red-soft: rgba(255, 71, 87, 0.12);
+  --accent: #ffb700;
+  --accent-soft: rgba(255, 183, 0, 0.12);
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --t: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================================
+   Reset
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 217, 126, 0.06), transparent),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(255, 183, 0, 0.04), transparent);
+  background-attachment: fixed;
+}
+
+/* ============================================================================
+   Layout
+   ========================================================================== */
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+}
+
+/* ============================================================================
+   Hero
+   ========================================================================== */
+
+.hero {
+  text-align: left;
+  padding: 0 0 32px;
+}
+
+/* Ocultar el SVG decorativo del hero */
+.hero .corner-graphic {
+  display: none;
+}
+
+.hero h1 {
+  font-family: 'Anton', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  margin-bottom: 4px;
+  background: linear-gradient(135deg, #ffffff 0%, #8b95a5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+
+.hero .tagline {
+  color: var(--text-dim);
+  font-size: 0.875rem;
+}
+
+/* ============================================================================
+   Panel
+   ========================================================================== */
+
+.panel {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: border-color var(--t);
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  pointer-events: none;
+}
+
+.panel:hover {
+  border-color: #3a4556;
+}
+
+.panel-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 16px;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-title small {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+/* ============================================================================
+   Campos
+   ========================================================================== */
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.field label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 520px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+   Inputs y selects
+   ========================================================================== */
+
+input[type="password"],
+input[type="text"],
+input[type="file"],
+select {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 11px 14px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color var(--t), background var(--t);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+select {
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%238b95a5%22%20d%3D%22M6%208L2%204h8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+input:hover,
+select:hover {
+  border-color: #3a4556;
+  background: var(--surface-hover);
+}
+
+input:focus,
+select:focus {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+input::placeholder {
+  color: var(--text-faint);
+}
+
+.input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.input-row input {
+  flex: 1;
+}
+
+/* ============================================================================
+   Botones
+   ========================================================================== */
+
+button,
+.btn-primary {
+  background: linear-gradient(180deg, #ffc93c 0%, #ffb700 100%);
+  color: #0d1117;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 11px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform var(--t), box-shadow var(--t), filter var(--t);
+  box-shadow: 0 2px 8px rgba(255, 183, 0, 0.15);
+}
+
+button:hover,
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(255, 183, 0, 0.3);
+  filter: brightness(1.05);
+}
+
+button:active,
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(255, 183, 0, 0.2);
+}
+
+button:disabled,
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+#simulate-btn {
+  width: 100%;
+  padding: 14px 18px;
+  font-size: 0.95rem;
+  margin-top: 8px;
+}
+
+#export-params-btn {
+  background: linear-gradient(180deg, #00e88a 0%, #00d97e 100%);
+  color: #0d1117;
+}
+
+/* ============================================================================
+   Status
+   ========================================================================== */
+
+#api-status {
+  display: inline-block;
+  font-size: 0.8125rem;
+  margin-top: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+#params-status {
+  font-size: 0.8125rem;
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--line);
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.7;
+  transition: border-color var(--t), background var(--t);
+}
+
+/* ============================================================================
+   Cards
+   ========================================================================== */
+
+.card {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 12px;
+  transition: border-color var(--t), transform var(--t);
+  position: relative;
+}
+
+.card:hover {
+  border-color: #3a4556;
+}
+
+.card h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  letter-spacing: 0.01em;
+}
+
+.card h3 small {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.card .corner-team-title {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================================
+   Filas de probabilidades
+   ========================================================================== */
+
+.prob-row {
+  margin-bottom: 14px;
+}
+
+.prob-row:last-child {
+  margin-bottom: 0;
+}
+
+.prob-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  font-size: 0.875rem;
+}
+
+.prob-row-top > span:first-child {
+  color: var(--text);
+}
+
+.prob {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* ============================================================================
+   Barra semáforo
+   ========================================================================== */
+
+.semaforo-track {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-2);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.semaforo-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--t);
+  position: relative;
+}
+
+.semaforo-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25));
+  pointer-events: none;
+}
+
+/* ============================================================================
+   Comparación
+   ========================================================================== */
+
+.compare-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 0.8125rem;
+}
+
+.compare-row:last-child {
+  border-bottom: none;
+}
+
+.compare-row.compare-head {
+  font-size: 0.6875rem;
+  color: var(--text-dim);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.grid-plain {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8125rem;
+  color: var(--text);
+  text-align: center;
+}
+
+/* ============================================================================
+   Grid prob
+   ========================================================================== */
+
+.grid-prob {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.grid-prob-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.grid-prob-bar {
+  display: block;
+  width: 100%;
+  height: 3px;
+  background: var(--bg-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.grid-prob-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--t);
+}
+
+/* ============================================================================
+   Herramientas
+   ========================================================================== */
+
+.tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tools-list a {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: all var(--t);
+}
+
+.tools-list a:hover {
+  background: var(--surface-hover);
+  border-color: #3a4556;
+  transform: translateX(2px);
+}
+
+/* ============================================================================
+   Scrollbar
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4556;
+}
+
+/* ============================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .container {
+    padding: 24px 16px 64px;
+  }
+
+  .panel {
+    padding: 18px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .hero h1 {
+    font-size: 2rem;
+  }
+
+  .compare-row {
+    font-size: 0.75rem;
+  }
+
+  .grid-plain,
+  .grid-prob-value {
+    font-size: 0.72rem;
+  }
+}
+
+/* ============================================================================
+   Destello parpadeante en picks recomendados
+   ========================================================================== */
+
+@keyframes pickGlow {
+  0%, 100% {
+    border-color: rgba(0, 217, 126, 0.4);
+    box-shadow: 0 0 0 rgba(0, 217, 126, 0);
+  }
+  50% {
+    border-color: rgba(0, 217, 126, 1);
+    box-shadow: 0 0 16px rgba(0, 217, 126, 0.25);
+  }
+}
+
+.card[style*="border:2px solid var(--green)"],
+.card[style*="border: 2px solid var(--green)"] {
+  animation: pickGlow 2.5s ease-in-out infinite;
+}
+
+.card.pick-card {
+  animation: pickGlow 2.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card[style*="border:2px solid var(--green)"],
+  .card[style*="border: 2px solid var(--green)"],
+  .card.pick-card {
+    animation: none;
+  }
+}

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Backtest — ScorePro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+
+    <header class="hero">
+      <svg class="corner-graphic" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M15 15 H85" />
+        <path d="M15 15 V85" />
+        <path d="M15 35 A20 20 0 0 1 35 15" />
+      </svg>
+      <h1>Backtest</h1>
+      <p class="tagline">Calibración automática + backtest contra partidos reales.</p>
+    </header>
+
+    <section class="panel">
+      <h2 class="panel-title">Cargar historial</h2>
+      <label for="historial-file">Archivo JSON del historial</label>
+      <input type="file" id="historial-file" accept=".json">
+      <p id="file-info" style="margin-top:8px; font-size:0.85rem; color:var(--chalk-dim);"></p>
+    </section>
+
+    <section class="panel">
+      <button id="run-btn" class="btn-primary" disabled>Ejecutar backtest</button>
+    </section>
+
+    <section id="log-section" class="panel" style="display:none;">
+      <h2 class="panel-title">Log</h2>
+      <pre id="log" style="background:var(--bg); padding:12px; border-radius:6px; font-family:'IBM Plex Mono',monospace; font-size:0.78rem; line-height:1.5; max-height:400px; overflow-y:auto; color:var(--chalk-dim); white-space:pre-wrap;"></pre>
+    </section>
+
+    <section id="calibration-section" class="panel" style="display:none;">
+      <h2 class="panel-title">Calibración automática de la liga</h2>
+      <div id="calibration-content"></div>
+    </section>
+
+    <section id="picks-section" class="panel" style="display:none;">
+      <h2 class="panel-title">Recomendaciones por partido</h2>
+      <div id="picks-content"></div>
+    </section>
+
+    <section id="results" class="panel" style="display:none;">
+      <h2 class="panel-title">Resultados por mercado</h2>
+      <div id="results-content"></div>
+    </section>
+
+    <section id="export-section" class="panel" style="display:none;">
+      <h2 class="panel-title">Exportar</h2>
+      <button id="export-btn" class="btn-primary" style="margin-bottom:8px;">📥 Exportar CSV de partidos</button>
+      <button id="export-params-btn" class="btn-primary" style="background:var(--green);">📥 Descargar params.json (sincronizar dispositivos)</button>
+      <p style="margin:10px 0 0; font-size:0.78rem; color:var(--chalk-dim); line-height:1.5;">
+        <strong>¿Cómo sincronizar PC ↔ celular?</strong><br>
+        1. Corré el backtest en este dispositivo.<br>
+        2. Click en "Descargar params.json".<br>
+        3. Subí ese archivo al repo (reemplazando el existente).<br>
+        4. Los demás dispositivos ya verán los params automáticamente.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Navegación</h2>
+      <div class="tools-list">
+        <a href="index.html">🏠 Volver al inicio</a>
+      </div>
+    </section>
+
+  </div>
+
+  <script type="module" src="leagues.js"></script>
+  <script type="module" src="stats.js"></script>
+  <script type="module" src="model.js"></script>
+  <script type="module" src="calibrate.js"></script>
+  <script type="module" src="auto-calibrate.js"></script>
+  <script type="module" src="api.js"></script>
+  <script type="module" src="backtest.js"></script>
+</body>
+</html>

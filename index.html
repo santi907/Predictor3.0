@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>predictions — Simulador de córners y resultados</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+
+    <header class="hero">
+      <svg class="corner-graphic" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M15 15 H85" />
+        <path d="M15 15 V85" />
+        <path d="M15 35 A20 20 0 0 1 35 15" />
+      </svg>
+      <h1>ScorePro</h1>
+      <p class="tagline">Simulador estadístico de resultados.</p>
+    </header>
+
+    <section id="api-key-section" class="panel">
+      <h2 class="panel-title">Acceso a datos en vivo</h2>
+      <label for="api-key">API key de Bzzoiro</label>
+      <div class="input-row">
+        <input type="password" id="api-key" placeholder="Ingresá tu token" autocomplete="off">
+        <button id="save-api-key">Guardar</button>
+      </div>
+      <span id="api-status"></span>
+    </section>
+
+    <section class="panel selector-section">
+      <h2 class="panel-title">Elegí el partido</h2>
+      <div class="field">
+        <label for="league-select">Liga</label>
+        <select id="league-select"></select>
+        <div id="params-status" style="font-size:0.8rem; margin-top:6px; color:var(--chalk-dim);">
+          ⚠️ Sin calibración guardada (corre backtest primero)
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="home-team-select">Local</label>
+          <select id="home-team-select"></select>
+        </div>
+        <div class="field">
+          <label for="away-team-select">Visitante</label>
+          <select id="away-team-select"></select>
+        </div>
+      </div>
+      <button id="simulate-btn" class="btn-primary">Simular partido</button>
+    </section>
+
+    <section id="results" class="results" style="display:none;">
+      <h2 class="panel-title">Predicciones</h2>
+      <div id="predictions-content"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Mantenimiento y Auditoría</h2>
+      <div class="tools-list">
+        <a href="backtest.html">🎯 Backtest contra partidos reales</a>
+        <a href="recalcular-ratings.html">📈 Recalcular ratings por forma reciente</a>
+        <a href="verificar-equipos.html">🔍 Verificar equipos al día</a>
+        <a href="probar-cuotas.html">💰 Probar acceso a cuotas reales</a>
+        <a href="export-historial.html">📋 Exportar historial real</a>
+      </div>
+    </section>
+
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

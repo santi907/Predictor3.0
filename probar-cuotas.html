@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Probar cuotas — Suertudo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .container { max-width: 640px; }
+  #log { font-family:'IBM Plex Mono',monospace; font-size:0.78rem; color:var(--chalk-dim); white-space:pre-wrap; margin-top:10px; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header class="hero">
+      <svg class="corner-graphic" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M15 15 H85" /><path d="M15 15 V85" /><path d="M15 35 A20 20 0 0 1 35 15" />
+      </svg>
+      <h1>Probar cuotas</h1>
+      <p class="tagline">Chequea si tu token tiene acceso al Odds API de Bzzoiro (es un add-on de $5/mes, gratis solo hasta el 17/8).</p>
+    </header>
+    <section class="panel">
+      <div class="field">
+        <label for="liga">Liga</label>
+        <select id="liga"></select>
+      </div>
+      <button id="btn" class="btn-primary">Probar</button>
+      <div id="log"></div>
+    </section>
+  </div>
+
+<script type="module">
+import { LIGAS } from './leagues.js';
+import { resolveLeagueId } from './api.js';
+
+const ligaSelect = document.getElementById('liga');
+const btn = document.getElementById('btn');
+const logDiv = document.getElementById('log');
+
+for (const [key, liga] of Object.entries(LIGAS)) {
+  const opt = document.createElement('option');
+  opt.value = key; opt.textContent = liga.name;
+  ligaSelect.appendChild(opt);
+}
+
+function log(msg) { logDiv.textContent += msg + '\n'; }
+function getToken() { return localStorage.getItem('bzzoiro_token'); }
+
+async function probar(url) {
+  const token = getToken();
+  try {
+    const res = await fetch(url, { headers: { 'Authorization': `Token ${token}` } });
+    const texto = await res.text();
+    return { status: res.status, texto };
+  } catch (e) {
+    return { status: 'error de red', texto: e.message };
+  }
+}
+
+btn.addEventListener('click', async () => {
+  if (!getToken()) { alert('Guardá tu token en la página principal primero.'); return; }
+  btn.disabled = true;
+  logDiv.textContent = '';
+
+  try {
+    const leagueKey = ligaSelect.value;
+    const liga = LIGAS[leagueKey];
+    log(`Resolviendo ${liga.name}...`);
+    const bzzoiroId = await resolveLeagueId(leagueKey, liga.name);
+    if (bzzoiroId === null) { log('❌ No se pudo resolver esta liga.'); btn.disabled = false; return; }
+    log(`✅ Liga id ${bzzoiroId}`);
+
+    log('Buscando un partido reciente para tener un event_id real...');
+    const token = getToken();
+    const evRes = await fetch(`https://sports.bzzoiro.com/api/v2/events/?league_id=${bzzoiroId}&status=finished&limit=1`, {
+      headers: { 'Authorization': `Token ${token}` }
+    });
+    const evData = await evRes.json();
+    const ev = evData.results?.[0];
+    if (!ev) { log('❌ No encontré ningún partido reciente para probar.'); btn.disabled = false; return; }
+    log(`✅ Partido de prueba: ${ev.home_team} vs ${ev.away_team} (id ${ev.id})\n`);
+
+    const intentos = [
+      { nombre: 'Odds del evento (confirmado que funciona)', url: `https://sports.bzzoiro.com/api/v2/events/${ev.id}/odds/` },
+    ];
+
+    for (const intento of intentos) {
+      log(`--- ${intento.nombre} ---`);
+      log(`GET ${intento.url}`);
+      const r = await probar(intento.url);
+      log(`Status: ${r.status}`);
+      let mostrar = r.texto;
+      try { mostrar = JSON.stringify(JSON.parse(r.texto), null, 2); } catch (e) { /* no era JSON, se muestra tal cual */ }
+      log(`Respuesta:\n${mostrar}\n`);
+    }
+  } catch (e) {
+    log('❌ Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exportar historial — Visión Verde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  a.descargar { display:inline-block; background:var(--green); color:#0a0f0b; padding:12px 18px; border-radius:10px 3px 10px 3px; text-decoration:none; font-weight:600; margin-top:12px; }
+  #log { font-family:'IBM Plex Mono',monospace; font-size:0.78rem; color:var(--chalk-dim); white-space:pre-wrap; max-height:220px; overflow-y:auto; margin-top:10px; }
+</style>
+</head>
+<body>
+  <div class="container">
+
+    <header class="hero">
+      <svg class="corner-graphic" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M15 15 H85" />
+        <path d="M15 15 V85" />
+        <path d="M15 35 A20 20 0 0 1 35 15" />
+      </svg>
+      <h1>Historial</h1>
+      <p class="tagline">Trae partidos ya jugados (resultado y córners reales) para usar en el backtest o en recalcular ratings.</p>
+    </header>
+
+    <section class="panel">
+      <h2 class="panel-title">Parámetros</h2>
+      <div class="field">
+        <label for="liga">Liga</label>
+        <select id="liga"></select>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="desde">Desde</label>
+          <input type="date" id="desde">
+        </div>
+        <div class="field">
+          <label for="hasta">Hasta</label>
+          <input type="date" id="hasta">
+        </div>
+      </div>
+      <div class="field">
+        <label for="cantidad">Cantidad máxima de partidos</label>
+        <input type="number" id="cantidad" value="60" min="10" max="200">
+      </div>
+      <button id="btn" class="btn-primary">Exportar</button>
+      <div id="log"></div>
+      <div id="resultado"></div>
+    </section>
+
+  </div>
+
+<script type="module">
+import { LIGAS, BZZOIRO_COUNTRY } from './leagues.js';
+import { resolveLeagueId } from './api.js';
+
+const ligaSelect = document.getElementById('liga');
+const desdeInput = document.getElementById('desde');
+const hastaInput = document.getElementById('hasta');
+const cantidadInput = document.getElementById('cantidad');
+const btn = document.getElementById('btn');
+const logDiv = document.getElementById('log');
+const resultadoDiv = document.getElementById('resultado');
+
+for (const [key, liga] of Object.entries(LIGAS)) {
+  const opt = document.createElement('option');
+  opt.value = key;
+  opt.textContent = liga.name;
+  ligaSelect.appendChild(opt);
+}
+
+const hoy = new Date();
+const hace90 = new Date(hoy.getTime() - 90 * 24 * 60 * 60 * 1000);
+hastaInput.value = hoy.toISOString().slice(0, 10);
+desdeInput.value = hace90.toISOString().slice(0, 10);
+
+function log(msg) {
+  logDiv.textContent += msg + '\n';
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function getToken() {
+  return localStorage.getItem('bzzoiro_token');
+}
+
+async function fetchAPI(endpoint) {
+  const token = getToken();
+  const res = await fetch(`https://sports.bzzoiro.com/api/v2${endpoint}`, {
+    headers: { 'Authorization': `Token ${token}` }
+  });
+  if (!res.ok) throw new Error(`Error ${res.status} en ${endpoint}`);
+  return res.json();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+btn.addEventListener('click', async () => {
+  if (!getToken()) {
+    alert('Primero guardá tu token de Bzzoiro en la página principal del simulador.');
+    return;
+  }
+  btn.disabled = true;
+  logDiv.textContent = '';
+  resultadoDiv.innerHTML = '';
+
+  try {
+    const leagueKey = ligaSelect.value;
+    const liga = LIGAS[leagueKey];
+    const maxPartidos = Math.min(200, Math.max(1, +cantidadInput.value || 60));
+
+    log(`Resolviendo id de Bzzoiro para ${liga.name}...`);
+    const pais = BZZOIRO_COUNTRY[leagueKey];
+    if (pais) {
+      const listado = await fetchAPI(`/leagues/?country=${encodeURIComponent(pais)}`);
+      const candidatas = (listado.results || listado || []).map(l => `${l.name} (id ${l.id})`).join(' | ');
+      log(`🔎 Ligas que Bzzoiro tiene para ${pais}: ${candidatas || '(ninguna)'}`);
+    }
+    const bzzoiroId = await resolveLeagueId(leagueKey, liga.name);
+    if (bzzoiroId === null) {
+      log('❌ Esta competición no tiene un país único en Bzzoiro (torneo continental) — no se puede exportar.');
+      btn.disabled = false;
+      return;
+    }
+    log(`✅ Liga resuelta: id ${bzzoiroId}`);
+
+    log('Buscando partidos ya jugados...');
+    const eventos = [];
+    let offset = 0;
+    while (eventos.length < maxPartidos) {
+      const data = await fetchAPI(
+        `/events/?league_id=${bzzoiroId}&status=finished&date_from=${desdeInput.value}&date_to=${hastaInput.value}&limit=50&offset=${offset}`
+      );
+      const results = data.results || [];
+      eventos.push(...results);
+      if (!data.next || results.length === 0) break;
+      offset += 50;
+      await sleep(150);
+    }
+    const finales = eventos.slice(0, maxPartidos);
+    log(`✅ ${finales.length} partidos encontrados. Trayendo corners y cuotas de cada uno...`);
+
+    const partidos = [];
+    for (let i = 0; i < finales.length; i++) {
+      const ev = finales[i];
+      try {
+        const stats = await fetchAPI(`/events/${ev.id}/stats/`);
+        let odds = null;
+        try {
+          const o = await fetchAPI(`/events/${ev.id}/odds/`);
+          odds = o.odds || null;
+        } catch (e) {
+          // Sin cuotas para este partido puntual — no corta la exportación
+        }
+        partidos.push({
+          fecha: ev.event_date || null,
+          local: ev.home_team || ev.home?.name || null,
+          visitante: ev.away_team || ev.away?.name || null,
+          goles_local: ev.home_score ?? null,
+          goles_visitante: ev.away_score ?? null,
+          corners_local: stats.stats?.home?.corner_kicks ?? null,
+          corners_visitante: stats.stats?.away?.corner_kicks ?? null,
+          odds_local: odds?.home_win ?? null,
+          odds_empate: odds?.draw ?? null,
+          odds_visitante: odds?.away_win ?? null,
+          odds_over15: odds?.over_15_goals ?? null,
+          odds_under15: odds?.under_15_goals ?? null,
+          odds_over25: odds?.over_25_goals ?? null,
+          odds_under25: odds?.under_25_goals ?? null,
+          odds_over35: odds?.over_35_goals ?? null,
+          odds_under35: odds?.under_35_goals ?? null,
+          odds_btts_si: odds?.btts_yes ?? null,
+          odds_btts_no: odds?.btts_no ?? null,
+        });
+      } catch (e) {
+        log(`⚠️ Partido ${ev.id} falló (${e.message}), lo salteo`);
+      }
+      if (i % 5 === 0) log(`  ${i + 1}/${finales.length}...`);
+      await sleep(150);
+    }
+    
+    const conCorners = partidos.filter(p => p.corners_local != null && p.corners_visitante != null).length;
+    const conOdds = partidos.filter(p => p.odds_local != null).length;
+    log(`\n✅ Listo. ${partidos.length} partidos, ${conCorners} con corners registrados, ${conOdds} con cuotas reales.`);
+
+    const payload = { liga: liga.name, leagueKey, generado: new Date().toISOString(), partidos };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.className = 'descargar';
+    a.download = `historial_${leagueKey}_${desdeInput.value}_${hastaInput.value}.json`;
+    a.textContent = '⬇️ Descargar historial.json';
+    resultadoDiv.appendChild(a);
+  } catch (e) {
+    log('❌ Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

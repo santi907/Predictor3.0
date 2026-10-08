@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificar equipos — Suertudo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .container { max-width: 640px; }
+  #log { font-family:'IBM Plex Mono',monospace; font-size:0.76rem; color:var(--chalk-dim); white-space:pre-wrap; max-height:260px; overflow-y:auto; margin-top:10px; }
+  .liga-block { border-bottom: 1px dashed var(--line); padding: 12px 0; }
+  .liga-block:last-child { border-bottom: none; }
+  .liga-nombre { font-weight: 600; margin-bottom: 6px; }
+  .liga-ok { color: var(--green); }
+  .tag-falta { color: var(--red); font-family:'IBM Plex Mono',monospace; font-size:0.85rem; }
+  .tag-sobra { color: var(--chalk-dim); font-family:'IBM Plex Mono',monospace; font-size:0.85rem; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header class="hero">
+      <svg class="corner-graphic" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M15 15 H85" /><path d="M15 15 V85" /><path d="M15 35 A20 20 0 0 1 35 15" />
+      </svg>
+      <h1>Equipos al día</h1>
+      <p class="tagline">Revisa las 27 ligas con país mapeado de una sola vez: compara quién juega de verdad contra lo que tenés guardado.</p>
+    </header>
+
+    <section class="panel">
+      <p class="note" style="color:var(--chalk-dim); font-size:0.85rem;">
+        Trae partidos recientes y próximos (últimos 45 días, siguientes 45) para cada liga,
+        junta los equipos que aparecen jugando de verdad, y los compara contra
+        <code>TEAM_STRENGTH_DB</code>. Necesita tu token guardado. Las 3 ligas continentales
+        (Champions, Europa League, Libertadores) no se pueden chequear así — no tienen un
+        país único para resolver el id.
+      </p>
+      <button id="btn" class="btn-primary">Verificar todas las ligas</button>
+      <div id="log"></div>
+    </section>
+
+    <section id="resultado-section" class="panel" style="display:none;">
+      <h2 class="panel-title">Resultado</h2>
+      <div id="resultado"></div>
+    </section>
+  </div>
+
+<script type="module">
+import { LIGAS, TEAM_STRENGTH_DB, BZZOIRO_COUNTRY } from './leagues.js';
+import { resolveLeagueId } from './api.js';
+import { getTeamsForLeague } from './model.js';
+
+const btn = document.getElementById('btn');
+const logDiv = document.getElementById('log');
+const resultadoSection = document.getElementById('resultado-section');
+const resultadoDiv = document.getElementById('resultado');
+
+function log(msg) {
+  logDiv.textContent += msg + '\n';
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function getToken() { return localStorage.getItem('bzzoiro_token'); }
+
+async function fetchAPI(endpoint) {
+  const token = getToken();
+  const res = await fetch(`https://sports.bzzoiro.com/api/v2${endpoint}`, {
+    headers: { 'Authorization': `Token ${token}` }
+  });
+  if (!res.ok) throw new Error(`Error ${res.status}`);
+  return res.json();
+}
+
+btn.addEventListener('click', async () => {
+  if (!getToken()) {
+    alert('Primero guardá tu token de Bzzoiro en la página principal del simulador.');
+    return;
+  }
+  btn.disabled = true;
+  logDiv.textContent = '';
+  resultadoSection.style.display = 'none';
+
+  const hoy = new Date();
+  const desde = new Date(hoy.getTime() - 45 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const hasta = new Date(hoy.getTime() + 45 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const ligasAChequear = Object.keys(LIGAS).filter(k => BZZOIRO_COUNTRY[k]);
+  log(`Revisando ${ligasAChequear.length} ligas (las 3 continentales quedan afuera, no se pueden resolver por país)...\n`);
+
+  const resultados = [];
+
+  for (const leagueKey of ligasAChequear) {
+    const liga = LIGAS[leagueKey];
+    try {
+      const bzzoiroId = await resolveLeagueId(leagueKey, liga.name);
+      if (bzzoiroId === null) { log(`⏭️ ${liga.name}: sin país único, salteada`); continue; }
+
+      const data = await fetchAPI(`/events/?league_id=${bzzoiroId}&date_from=${desde}&date_to=${hasta}&limit=100`);
+      const eventos = data.results || [];
+      const equiposReales = new Set();
+      for (const ev of eventos) {
+        if (ev.home_team) equiposReales.add(ev.home_team);
+        if (ev.away_team) equiposReales.add(ev.away_team);
+      }
+
+      const guardados = new Set(Object.keys(getTeamsForLeague(leagueKey)));
+      const faltan = [...equiposReales].filter(e => !guardados.has(e));
+      const sobran = [...guardados].filter(e => !equiposReales.has(e));
+
+      resultados.push({ leagueKey, nombre: liga.name, equiposReales: equiposReales.size, faltan, sobran });
+      log(`✅ ${liga.name}: ${equiposReales.size} equipos jugando, ${faltan.length} sin datos${faltan.length ? ' ⚠️' : ''}`);
+    } catch (e) {
+      log(`❌ ${liga.name}: ${e.message}`);
+      resultados.push({ leagueKey, nombre: liga.name, error: e.message });
+    }
+    await sleep(200);
+  }
+
+  mostrarResultado(resultados);
+  btn.disabled = false;
+});
+
+function mostrarResultado(resultados) {
+  const conProblemas = resultados.filter(r => (r.faltan && r.faltan.length > 0) || r.error);
+  const limpias = resultados.filter(r => r.faltan && r.faltan.length === 0);
+
+  let html = `<p class="note" style="color:var(--chalk-dim); font-size:0.85rem;">
+    ${limpias.length} ligas al día. ${conProblemas.length} con algo para revisar.
+    "Sin datos" son equipos que juegan de verdad y no están en <code>leagues.js</code> —
+    eso rompe la simulación para ese equipo. "Guardado pero no visto" puede ser un
+    equipo descendido/eliminado, o simplemente que no le tocó jugar en esta ventana de 90 días.
+  </p>`;
+
+  for (const r of conProblemas) {
+    html += `<div class="liga-block"><div class="liga-nombre">${r.nombre}</div>`;
+    if (r.error) {
+      html += `<div class="tag-falta">Error: ${r.error}</div>`;
+    } else {
+      if (r.faltan.length) html += `<div class="tag-falta">⚠️ Sin datos (${r.faltan.length}): ${r.faltan.join(', ')}</div>`;
+      if (r.sobran.length) html += `<div class="tag-sobra">Guardado pero no visto en 90 días (${r.sobran.length}): ${r.sobran.join(', ')}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  if (limpias.length) {
+    html += `<div class="liga-block"><div class="liga-nombre liga-ok">✅ Al día (${limpias.length})</div><div class="tag-sobra">${limpias.map(r => r.nombre).join(', ')}</div></div>`;
+  }
+
+  resultadoDiv.innerHTML = html;
+  resultadoSection.style.display = 'block';
+}
+</script>
+</body>
+</html>
