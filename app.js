@@ -2,6 +2,7 @@
 import { LIGAS } from './leagues.js';
 import { simulateMatch, getTeamsForLeague } from './model.js';
 import { AutoCalibrate } from './auto-calibrate.js';
+import { generarPicks, getBettingConfig, aplicarShrink, textoUmbrales } from './picks.js';
 
 const ESTADO_KEY = 'vv_estado_seleccion';
 let ligaKeyGlobal = 'CPA';
@@ -17,23 +18,6 @@ function leerEstado() {
     const raw = localStorage.getItem(ESTADO_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
-}
-
-const UMBRAL_1X2 = 45;
-const UMBRAL_GOLES = 60;
-const UMBRAL_BTTS = 60;
-const UMBRAL_CORNERS = 60;
-
-function getBettingConfig(ligaKey) {
-  const liga = LIGAS[ligaKey];
-  return liga?.betting || { status: 'unknown' };
-}
-
-function esMercadoValido(ligaKey, mercado) {
-  const config = getBettingConfig(ligaKey);
-  if (config.status !== 'green' && config.status !== 'yellow') return false;
-  if (!config.mercados) return false;
-  return config.mercados.some(m => mercado.includes(m));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -78,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!el) return;
 
     if (!params) {
-      el.innerHTML = '⚠️ Sin calibración guardada (corre backtest primero)';
+      el.innerHTML = '⚠️ Sin calibración guardada: se usan valores base de la liga (corré el backtest para calibrar)';
       el.style.color = 'var(--yellow)';
       return;
     }
@@ -87,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const config = getBettingConfig(ligaKey);
 
     let html = `<div style="font-family:'IBM Plex Mono',monospace; font-size:0.78rem; line-height:1.5;">`;
-    html += `<div>📊 HA=${params.homeAdvantage.toFixed(3)} rho=${params.rho.toFixed(3)}${fuente}</div>`;
+    html += `<div>📊 HA=${params.homeAdvantage.toFixed(3)} rho=${params.rho.toFixed(3)}${params.goalsAvg ? ` goles=${params.goalsAvg.toFixed(2)}` : ''}${fuente}</div>`;
 
     if (config.status === 'green') {
       el.style.color = 'var(--green)';
@@ -199,6 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const results = await simulateMatch(leagueKey, homeTeam, awayTeam, {
         calibracion: paramsGuardados || undefined,
       });
+      results.resultProbs = aplicarShrink(results.resultProbs, paramsGuardados?.tasas);
       displayResults(results, leagueKey);
     } catch (err) {
       alert('Error: ' + err.message);
@@ -229,64 +214,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return 'var(--red)';
   }
 
-  function generarPicks(data, ligaKey) {
-    const picks = [];
-    const config = getBettingConfig(ligaKey);
-    if (config.status === 'red') return [];
-
-    const rp = data.resultProbs;
-    const max1x2 = Math.max(rp.local, rp.empate, rp.visitante);
-
-    if (max1x2 >= UMBRAL_1X2 && esMercadoValido(ligaKey, '1X2')) {
-      if (rp.local === max1x2) picks.push({ label: 'Local gana', prob: rp.local });
-      else if (rp.empate === max1x2) picks.push({ label: 'Empate', prob: rp.empate });
-      else picks.push({ label: 'Visitante gana', prob: rp.visitante });
-    }
-
-    const lineasGoles = [
-      { label: 'Over 3.5 goles', prob: data.over35, mercado: 'Over 3.5' },
-      { label: 'Over 2.5 goles', prob: data.over25, mercado: 'Over 2.5' },
-      { label: 'Over 1.5 goles', prob: data.over15, mercado: 'Over 1.5' },
-    ];
-    for (const l of lineasGoles) {
-      if (l.prob != null && l.prob >= UMBRAL_GOLES && esMercadoValido(ligaKey, l.mercado)) {
-        picks.push({ label: l.label, prob: l.prob });
-        break;
-      }
-    }
-
-    if (data.btts != null && data.btts >= UMBRAL_BTTS && esMercadoValido(ligaKey, 'BTTS')) {
-      picks.push({ label: 'Ambos marcan (Sí)', prob: data.btts });
-    }
-
-    if (data.cornerProbs) {
-      const lineasCorners = [
-        { label: 'Over 9.5 córners', prob: data.cornerProbs.over9 },
-        { label: 'Over 8.5 córners', prob: data.cornerProbs.over8 },
-        { label: 'Over 7.5 córners', prob: data.cornerProbs.over7 },
-      ];
-      for (const l of lineasCorners) {
-        if (l.prob != null && l.prob >= UMBRAL_CORNERS) {
-          picks.push({ label: l.label, prob: l.prob });
-          break;
-        }
-      }
-    }
-
-    if (data.cornerProbs?.porEquipo) {
-      const cL = data.cornerProbs.porEquipo.local?.over3;
-      const cV = data.cornerProbs.porEquipo.visitante?.over3;
-      if (cL != null && cL >= UMBRAL_CORNERS) picks.push({ label: `Córners ${data.homeTeam} Over 3.5`, prob: cL });
-      if (cV != null && cV >= UMBRAL_CORNERS) picks.push({ label: `Córners ${data.awayTeam} Over 3.5`, prob: cV });
-    }
-
-    return picks;
-  }
-
   function renderPicksCard(data, ligaKey) {
     const picks = generarPicks(data, ligaKey);
     const config = getBettingConfig(ligaKey);
-    const umbrales = `Umbrales: 1X2 ≥${UMBRAL_1X2}% · Goles ≥${UMBRAL_GOLES}% · BTTS ≥${UMBRAL_BTTS}% · Córners ≥${UMBRAL_CORNERS}%`;
+    const umbrales = textoUmbrales(ligaKey);
 
     if (config.status === 'red') {
       return `<div class="card" style="border:2px solid var(--red);"><h3 style="color:var(--red);">❌ NO APOSTAR EN ESTA LIGA</h3><p style="color:var(--chalk-dim); margin:8px 0 0; font-size:0.9rem;">Esta liga pierde contra cuota. Usala solo para análisis.</p></div>`;

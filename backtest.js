@@ -1,30 +1,13 @@
 // backtest.js
-import { LIGAS, HOME_ADVANTAGE, DIXON_COLES_RHO } from './leagues.js';
+import { LIGAS, HOME_ADVANTAGE, DIXON_COLES_RHO, FILTRO_EV, SHRINK_ALPHA, getUmbrales } from './leagues.js';
 import { simulateMatch } from './model.js';
-import { calcularTasasBase, ajustarHomeAdvantage, ajustarRho, shrinkHaciaBase } from './calibrate.js';
+import { calcularTasasBase, calibrarLigaMLE, shrinkHaciaBase } from './calibrate.js';
 import { AutoCalibrate } from './auto-calibrate.js';
 
 // ============ CONFIGURACIÓN ============
-const CAL_ITERACIONES = 10;
-const CAL_MUESTRA = 60;
+// FILTRO_EV, SHRINK_ALPHA y los umbrales por liga viven en leagues.js
+// (los comparte con la app para que lo que ves coincida con lo medido acá).
 const CAL_MIN_PARTIDOS = 20;
-const SHRINK_ALPHA = 0.15;
-const FILTRO_EV = 1.05;
-
-const UMBRALES_POR_LIGA = {
-  PL:  { umbral1x2: 50, umbralGoles: 75, umbralCorners: 65, umbralBtss: 70, cornersVisitante: false },
-  BSB: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 60, umbralBtss: 60, cornersVisitante: true },
-  ARG: { umbral1x2: 55, umbralGoles: 65, umbralCorners: 60, umbralBtss: 60, cornersVisitante: false },
-  MLS: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 65, umbralBtss: 65, cornersVisitante: false },
-  BSA: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 65, umbralBtss: 65, cornersVisitante: true },
-  CPA: { umbral1x2: 55, umbralGoles: 65, umbralCorners: 60, umbralBtss: 60, cornersVisitante: false },
-  MXL: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 65, umbralBtss: 65, cornersVisitante: true },
-  DEFAULT: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 60, umbralBtss: 60, cornersVisitante: true },
-};
-
-function getUmbrales(leagueKey) {
-  return UMBRALES_POR_LIGA[leagueKey] || UMBRALES_POR_LIGA.DEFAULT;
-}
 
 function devigar2(oddsA, oddsB) {
   if (!oddsA || !oddsB) return null;
@@ -122,65 +105,28 @@ class MarketStats {
 }
 
 // ============ CALIBRACIÓN ============
+// HA y rho por máxima verosimilitud sobre los marcadores reales, con hold-out
+// cronológico (ver calibrate.js). Reemplaza el viejo ajuste iterativo que
+// igualaba tasas L/E/V y dejaba a rho pegado a los límites.
 async function calibrarLiga(leagueKey, partidos) {
   partidos = [...partidos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  
+
   const tasas = calcularTasasBase(partidos);
   if (tasas.n < CAL_MIN_PARTIDOS) {
     log(`⚠️ Solo ${tasas.n} partidos — se omite la calibración.`);
     return { calibracion: null, tasas, historial: [], leagueKey };
   }
 
-  log(`\n🎯 Calibrando liga (${tasas.n} partidos)...`);
+  log(`\n🎯 Calibrando liga (${tasas.n} partidos) por máxima verosimilitud...`);
   log(`   Tasa real: local ${fmt(tasas.homeRate*100)}% · empate ${fmt(tasas.drawRate*100)}% · visitante ${fmt(tasas.awayRate*100)}%`);
 
-  let homeAdv = HOME_ADVANTAGE[leagueKey] ?? 1.05;
-  let rho = DIXON_COLES_RHO[leagueKey] ?? DIXON_COLES_RHO.default ?? -0.1;
-  const historial = [];
-
-  const muestra = [];
-  const step = Math.max(1, Math.floor(partidos.length / CAL_MUESTRA));
-  for (let i = 0; i < partidos.length && muestra.length < CAL_MUESTRA; i += step) {
-    if (partidos[i].goles_local != null && partidos[i].local && partidos[i].visitante) {
-      muestra.push(partidos[i]);
-    }
+  const r = await calibrarLigaMLE(leagueKey, partidos, { onLog: log, minPartidos: CAL_MIN_PARTIDOS });
+  if (!r.calibracion) {
+    log(`⚠️ ${r.razon} — se omite la calibración.`);
+    return { calibracion: null, tasas, historial: [], leagueKey };
   }
-
-  for (let iter = 0; iter < CAL_ITERACIONES; iter++) {
-    let sumL = 0, sumE = 0, sumV = 0, n = 0;
-    for (const p of muestra) {
-      try {
-        const pred = await simulateMatch(leagueKey, p.local, p.visitante, {
-          staticOnly: true,
-          calibracion: { homeAdvantage: homeAdv, rho }
-        });
-        sumL += pred.resultProbs.local;
-        sumE += pred.resultProbs.empate;
-        sumV += pred.resultProbs.visitante;
-        n++;
-      } catch (e) { /* skip */ }
-    }
-    if (n === 0) break;
-
-    const predHomeRate = sumL / n / 100;
-    const predDrawRate = sumE / n / 100;
-    const predAwayRate = sumV / n / 100;
-    const err = Math.abs(tasas.homeRate - predHomeRate)
-              + Math.abs(tasas.drawRate - predDrawRate)
-              + Math.abs(tasas.awayRate - predAwayRate);
-
-    historial.push({ iter: iter + 1, homeAdv, rho,
-      predHome: predHomeRate, predDraw: predDrawRate, predAway: predAwayRate, err });
-
-    log(`   [iter ${iter + 1}] homeAdv=${homeAdv.toFixed(3)} rho=${rho.toFixed(3)} → prob media L:${fmt(predHomeRate*100)}% E:${fmt(predDrawRate*100)}% V:${fmt(predAwayRate*100)}% (err ${fmt(err*100)}%)`);
-
-    if (err < 0.02) { log(`   ✓ Convergió (error < 2%)`); break; }
-
-    homeAdv = ajustarHomeAdvantage(homeAdv, tasas, predHomeRate);
-    rho = ajustarRho(rho, tasas, predDrawRate);
-  }
-
-  return { calibracion: { homeAdvantage: homeAdv, rho }, tasas, historial, leagueKey };
+  log(`   ℹ️ Las métricas de abajo se miden sobre los mismos partidos usados para ajustar (in-sample); el hold-out de arriba es la señal fuera de muestra.`);
+  return { calibracion: r.calibracion, tasas, historial: r.historial, leagueKey, diagnostico: r.diagnostico };
 }
 
 function renderCalibracion(resultado) {
@@ -198,6 +144,7 @@ function renderCalibracion(resultado) {
     return `<div class="compare-row"><span>${label}</span><span class="grid-plain">real ${fmt(real*100)}%</span><span class="grid-plain" style="color:${color}">pred ${fmt(pred*100)}%</span></div>`;
   };
   const originalHA = HOME_ADVANTAGE[leagueKey];
+  const hold = resultado.diagnostico?.holdout;
   const originalRho = DIXON_COLES_RHO[leagueKey];
   const umbrales = getUmbrales(leagueKey);
 
@@ -206,13 +153,13 @@ function renderCalibracion(resultado) {
       <h3>Parámetros derivados <small>(auto)</small></h3>
       <div class="compare-row">
         <span>HOME_ADVANTAGE</span>
-        <span class="grid-plain">${(originalHA ?? 1.05).toFixed(3)} original</span>
+        <span class="grid-plain">${(originalHA ?? 1.25).toFixed(3)} original</span>
         <span class="prob" style="color:var(--green)">${calibracion.homeAdvantage.toFixed(3)}</span>
       </div>
       <div class="compare-row">
         <span>DIXON_COLES_RHO</span>
         <span class="grid-plain">${(originalRho ?? -0.1).toFixed(3)} original</span>
-        <span class="prob" style="color:${calibracion.rho <= -0.34 ? 'var(--yellow)' : 'var(--green)'}">${calibracion.rho.toFixed(3)}</span>
+        <span class="prob" style="color:${calibracion.rho <= -0.19 ? 'var(--yellow)' : 'var(--green)'}">${calibracion.rho.toFixed(3)}</span>
       </div>
       <h3 class="corner-team-title">Distribución: real vs predicha (calibrada)</h3>
       <div class="compare-row compare-head"><span>Resultado</span><span>Real</span><span>Modelo</span></div>
@@ -227,9 +174,10 @@ function renderCalibracion(resultado) {
       <div class="compare-row"><span>Córners visitante</span><span class="grid-plain"></span><span class="prob" style="color:${umbrales.cornersVisitante ? 'var(--green)' : 'var(--red)'}">${umbrales.cornersVisitante ? 'ON' : 'OFF'}</span></div>
       <div class="compare-row"><span>Filtro EV mínimo</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${FILTRO_EV}</span></div>
       <p style="margin:10px 0 0; font-size:0.8rem; color:var(--chalk-dim)">
-        Error total: ${fmt(ultimo.err * 100)}% — ${historial.length} iteraciones.
+        Error total L/E/V: ${fmt(ultimo.err * 100)}% · goles/partido usados: ${calibracion.goalsAvg?.toFixed(2) ?? '—'}.
+        ${hold ? `Hold-out (${hold.nTest} partidos): ${hold.aceptado ? 'ajuste aceptado' : 'el ajuste no mejoraba → se mantuvo el valor base'} (dif ${hold.mejora} ± ${hold.se}).` : 'Muestra chica: sin hold-out.'}
         Shrinkage activo (α=${SHRINK_ALPHA}).
-        ${calibracion.rho <= -0.34 ? ' ⚠️ Rho en el límite inferior.' : ''}
+        ${calibracion.rho <= -0.19 ? ' ⚠️ Rho en el límite inferior.' : ''}
       </p>
     </div>`;
 }
@@ -361,16 +309,16 @@ class PicksStats {
   constructor(umbrales) {
     this.umbrales = umbrales;
     this.mercados = {
-      '1X2': { n: 0, hits: 0, profit: 0, label: `1X2 (favorito ≥ ${umbrales.umbral1x2}%)` },
-      'Over 1.5': { n: 0, hits: 0, profit: 0, label: 'Over 1.5 goles' },
-      'Over 2.5': { n: 0, hits: 0, profit: 0, label: 'Over 2.5 goles' },
-      'Over 3.5': { n: 0, hits: 0, profit: 0, label: 'Over 3.5 goles' },
-      'BTTS Sí': { n: 0, hits: 0, profit: 0, label: 'Ambos marcan (Sí)' },
-      'Córners totales Over 7.5': { n: 0, hits: 0, profit: 0, label: 'Over 7.5 córners totales' },
-      'Córners totales Over 8.5': { n: 0, hits: 0, profit: 0, label: 'Over 8.5 córners totales' },
-      'Córners totales Over 9.5': { n: 0, hits: 0, profit: 0, label: 'Over 9.5 córners totales' },
-      'Córners local Over 3.5': { n: 0, hits: 0, profit: 0, label: 'Córners local Over 3.5' },
-      'Córners visitante Over 3.5': { n: 0, hits: 0, profit: 0, label: 'Córners visitante Over 3.5' },
+      '1X2': { n: 0, nCuota: 0, hits: 0, profit: 0, label: `1X2 (favorito ≥ ${umbrales.umbral1x2}%)` },
+      'Over 1.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 1.5 goles' },
+      'Over 2.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 2.5 goles' },
+      'Over 3.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 3.5 goles' },
+      'BTTS Sí': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Ambos marcan (Sí)' },
+      'Córners totales Over 7.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 7.5 córners totales' },
+      'Córners totales Over 8.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 8.5 córners totales' },
+      'Córners totales Over 9.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 9.5 córners totales' },
+      'Córners local Over 3.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Córners local Over 3.5' },
+      'Córners visitante Over 3.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Córners visitante Over 3.5' },
     };
     this.partidosConPick = 0;
   }
@@ -395,6 +343,7 @@ class PicksStats {
       }
       if (!key || !this.mercados[key]) continue;
       this.mercados[key].n++;
+      if (pick.casaOdds) this.mercados[key].nCuota++;
       if (pick.hit) {
         this.mercados[key].hits++;
         if (pick.casaOdds) this.mercados[key].profit += (pick.casaOdds - 1);
@@ -410,7 +359,9 @@ class PicksStats {
         key: k, label: v.label, n: v.n, hits: v.hits,
         rate: v.n ? v.hits / v.n * 100 : null,
         profit: v.profit,
-        roi: v.n ? (v.profit / v.n) * 100 : null,
+        nCuota: v.nCuota,
+        // ROI solo sobre picks con cuota real (antes dividía también por los que no tenían)
+        roi: v.nCuota ? (v.profit / v.nCuota) * 100 : null,
       });
     }
     return { mercados: out, partidosConPick: this.partidosConPick };

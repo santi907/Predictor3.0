@@ -7,7 +7,7 @@ import { BZZOIRO_COUNTRY } from './leagues.js';
 const BASE_URL = 'https://sports.bzzoiro.com/api/v2';
 
 function getToken() {
-  if (typeof process !== 'undefined' && process.env.BZZOIRO_TOKEN) {
+  if (typeof process !== 'undefined' && process.env?.BZZOIRO_TOKEN) {
     return process.env.BZZOIRO_TOKEN;
   }
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -45,6 +45,31 @@ function tokens(name) {
 function todasLasPalabrasEstan(chicas, grandes) {
   const set = new Set(grandes);
   return chicas.length > 0 && chicas.every(t => set.has(t));
+}
+
+// Busca un equipo en un mapa {nombre: dato} aunque el nombre difiera
+// ("Manchester City" vs "Manchester City FC"). Devuelve el dato o null.
+export function buscarEquipoEn(mapa, nombre) {
+  if (!mapa || !nombre) return null;
+  if (mapa[nombre]) return mapa[nombre];
+  const limpio = cleanName(nombre);
+  const nombres = Object.keys(mapa);
+  const igual = nombres.find(n => cleanName(n) === limpio);
+  if (igual) return mapa[igual];
+  const tk = tokens(nombre);
+  const candidatos = nombres.filter(n => {
+    const t = tokens(n);
+    return todasLasPalabrasEstan(tk, t) || todasLasPalabrasEstan(t, tk);
+  });
+  if (candidatos.length === 1) return mapa[candidatos[0]];
+  if (candidatos.length > 1) {
+    // varios posibles: nos quedamos con el de longitud más parecida
+    candidatos.sort((a, b) => Math.abs(tokens(a).length - tk.length) - Math.abs(tokens(b).length - tk.length));
+    const mejor = Math.abs(tokens(candidatos[0]).length - tk.length);
+    const segundo = Math.abs(tokens(candidatos[1]).length - tk.length);
+    if (mejor < segundo) return mapa[candidatos[0]];
+  }
+  return null;
 }
 
 const leagueIdCache = new Map();
@@ -154,19 +179,22 @@ export async function fetchLeagueDynamicData(leagueKey, leagueDisplayName) {
   const goalsAvg = totalPlayed > 0 ? (totalGF / totalPlayed) * 2 : null;
   if (!goalsAvg) throw new Error('Datos insuficientes (0 partidos jugados)');
 
+  // Ratings CRUDOS relativos al promedio de la liga + partidos jugados.
+  // La mezcla con el rating estático (prior) y el encogimiento los hace model.js.
   const teamRatings = {};
   for (const [name, s] of Object.entries(teamStats)) {
-    if (s.played < 3) continue; 
+    if (s.played < 2) continue;
     const gfPerMatch = s.gf / s.played;
     const gaPerMatch = s.ga / s.played;
     teamRatings[name] = {
       atk: +(gfPerMatch / (goalsAvg / 2)).toFixed(3),
-      def: +(gaPerMatch / (goalsAvg / 2)).toFixed(3)
+      def: +(gaPerMatch / (goalsAvg / 2)).toFixed(3),
+      played: s.played
     };
   }
 
   console.log(`✅ Standings OK. Equipos con datos en vivo: ${Object.keys(teamRatings).length}/${rows.length}`);
-  return { goalsAvg, cornAvg: null, teamRatings, bzzoiroLeagueId };
+  return { goalsAvg, totalPlayed, cornAvg: null, teamRatings, bzzoiroLeagueId };
 }
 
 export async function fetchMatchPrediction(bzzoiroLeagueId, homeTeam, awayTeam) {

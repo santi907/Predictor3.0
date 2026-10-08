@@ -1,14 +1,11 @@
 // auto-calibrate.js
 // Recalibra automáticamente cada 30 partidos nuevos, con ventana de 200.
 // Guarda params en localStorage Y permite exportar a params.json.
+// v2: usa calibración por máxima verosimilitud (calibrate.js) e ignora params
+// guardados con otra versión del modelo (MODEL_VERSION).
 
-import { LIGAS, HOME_ADVANTAGE, DIXON_COLES_RHO } from './leagues.js';
-import { simulateMatch } from './model.js';
-import {
-  calcularTasasBase,
-  ajustarHomeAdvantage,
-  ajustarRho,
-} from './calibrate.js';
+import { LIGAS, MODEL_VERSION } from './leagues.js';
+import { calibrarLigaMLE, sanearParams } from './calibrate.js';
 
 const STORAGE_PREFIX = 'autocal_';
 const PARAMS_JSON_URL = './params.json';
@@ -17,8 +14,6 @@ export const AutoCalibrate = {
   CONFIG: {
     VENTANA: 200,
     PASO: 30,
-    MAX_ITER: 10,
-    MUESTRA: 60,
     MIN_PARTIDOS: 20,
     ERROR_CONV: 0.02,
   },
@@ -49,7 +44,11 @@ export const AutoCalibrate = {
   getEstado(ligaKey) {
     try {
       const raw = localStorage.getItem(`${STORAGE_PREFIX}${ligaKey}`);
-      return raw ? JSON.parse(raw) : { partidosCalibrados: 0, params: null, ultima: null };
+      if (!raw) return { partidosCalibrados: 0, params: null, ultima: null };
+      const est = JSON.parse(raw);
+      // Parámetros calibrados con otra versión del modelo: se descartan.
+      if (est.v !== MODEL_VERSION) return { partidosCalibrados: 0, params: null, ultima: null };
+      return est;
     } catch (e) {
       return { partidosCalibrados: 0, params: null, ultima: null };
     }
@@ -57,7 +56,7 @@ export const AutoCalibrate = {
 
   setEstado(ligaKey, estado) {
     try {
-      localStorage.setItem(`${STORAGE_PREFIX}${ligaKey}`, JSON.stringify(estado));
+      localStorage.setItem(`${STORAGE_PREFIX}${ligaKey}`, JSON.stringify({ ...estado, v: MODEL_VERSION }));
     } catch (e) {
       console.warn('No se pudo guardar estado:', e);
     }
@@ -68,14 +67,17 @@ export const AutoCalibrate = {
   async getParamsActivos(ligaKey) {
     // 1. localStorage (el usuario acaba de calibrar)
     const estado = this.getEstado(ligaKey);
-    if (estado.params) {
-      return { ...estado.params, fuente: 'local' };
+    const local = sanearParams(estado.params);
+    if (local) {
+      return { ...local, fuente: 'local', tasas: estado.tasas || null };
     }
 
-    // 2. params.json (del repo, sincronizado)
+    // 2. params.json (del repo, sincronizado). Se ignoran entradas de otra versión.
     const paramsJSON = await this.cargarParamsJSON();
-    if (paramsJSON[ligaKey]?.params) {
-      return { ...paramsJSON[ligaKey].params, fuente: 'repo' };
+    const entrada = paramsJSON[ligaKey];
+    if (entrada?.params && entrada.v === MODEL_VERSION) {
+      const repo = sanearParams(entrada.params);
+      if (repo) return { ...repo, fuente: 'repo', tasas: entrada.tasas || null };
     }
 
     // 3. Nada
@@ -85,7 +87,7 @@ export const AutoCalibrate = {
   // Versión sync (solo localStorage) — para compatibilidad
   getParamsActivosSync(ligaKey) {
     const estado = this.getEstado(ligaKey);
-    return estado.params || null;
+    return sanearParams(estado.params);
   },
 
   debeRecalibrar(ligaKey, partidos) {
@@ -97,69 +99,14 @@ export const AutoCalibrate = {
 
   // ============ CALIBRACIÓN ============
   async calibrar(ligaKey, partidos, onLog = null) {
-    const log = (msg) => { if (onLog) onLog(msg); };
-
-    const tasas = calcularTasasBase(partidos);
-    if (tasas.n < this.CONFIG.MIN_PARTIDOS) {
-      return { calibracion: null, razon: `Solo ${tasas.n} partidos` };
-    }
-
-    let homeAdv = HOME_ADVANTAGE[ligaKey] ?? 1.05;
-    let rho = DIXON_COLES_RHO[ligaKey] ?? DIXON_COLES_RHO.default ?? -0.1;
-    const historial = [];
-
-    const muestra = [];
-    const step = Math.max(1, Math.floor(partidos.length / this.CONFIG.MUESTRA));
-    for (let i = 0; i < partidos.length && muestra.length < this.CONFIG.MUESTRA; i += step) {
-      if (partidos[i].goles_local != null && partidos[i].local && partidos[i].visitante) {
-        muestra.push(partidos[i]);
-      }
-    }
-
-    for (let iter = 0; iter < this.CONFIG.MAX_ITER; iter++) {
-      let sumL = 0, sumE = 0, sumV = 0, n = 0;
-      for (const p of muestra) {
-        try {
-          const pred = await simulateMatch(ligaKey, p.local, p.visitante, {
-            staticOnly: true,
-            calibracion: { homeAdvantage: homeAdv, rho }
-          });
-          sumL += pred.resultProbs.local;
-          sumE += pred.resultProbs.empate;
-          sumV += pred.resultProbs.visitante;
-          n++;
-        } catch (e) { /* skip */ }
-      }
-      if (n === 0) break;
-
-      const predHomeRate = sumL / n / 100;
-      const predDrawRate = sumE / n / 100;
-      const predAwayRate = sumV / n / 100;
-      const err = Math.abs(tasas.homeRate - predHomeRate)
-                + Math.abs(tasas.drawRate - predDrawRate)
-                + Math.abs(tasas.awayRate - predAwayRate);
-
-      historial.push({
-        iter: iter + 1, homeAdv, rho,
-        predHome: predHomeRate, predDraw: predDrawRate, predAway: predAwayRate, err
-      });
-
-      log(`   [iter ${iter + 1}] homeAdv=${homeAdv.toFixed(3)} rho=${rho.toFixed(3)} → L:${(predHomeRate*100).toFixed(1)}% E:${(predDrawRate*100).toFixed(1)}% V:${(predAwayRate*100).toFixed(1)}% (err ${(err*100).toFixed(1)}%)`);
-
-      if (err < this.CONFIG.ERROR_CONV) {
-        log(`   ✓ Convergió (error < 2%)`);
-        break;
-      }
-
-      homeAdv = ajustarHomeAdvantage(homeAdv, tasas, predHomeRate);
-      rho = ajustarRho(rho, tasas, predDrawRate);
-    }
-
+    const r = await calibrarLigaMLE(ligaKey, partidos, { onLog, minPartidos: this.CONFIG.MIN_PARTIDOS });
+    if (!r.calibracion) return { calibracion: null, razon: r.razon, tasas: r.tasas };
     return {
-      calibracion: { homeAdvantage: homeAdv, rho },
-      tasas,
-      historial,
-      error: historial[historial.length - 1]?.err ?? 1,
+      calibracion: r.calibracion,
+      tasas: r.tasas,
+      historial: r.historial,
+      error: r.error,
+      diagnostico: r.diagnostico,
     };
   },
 
@@ -196,12 +143,12 @@ export const AutoCalibrate = {
       partidosCalibrados: partidos.length,
       params: resultado.calibracion,
       ultima: new Date().toISOString(),
-      tasas: resultado.tasas,
+      tasas: { homeRate: resultado.tasas.homeRate, drawRate: resultado.tasas.drawRate, awayRate: resultado.tasas.awayRate, n: resultado.tasas.n },
       error: resultado.error,
     };
     this.setEstado(ligaKey, nuevoEstado);
 
-    log(`✅ ${ligaKey}: HA=${resultado.calibracion.homeAdvantage.toFixed(3)}, rho=${resultado.calibracion.rho.toFixed(3)}, err=${(resultado.error * 100).toFixed(1)}%`);
+    log(`✅ ${ligaKey}: HA=${resultado.calibracion.homeAdvantage.toFixed(3)}, rho=${resultado.calibracion.rho.toFixed(3)}, goles/partido=${resultado.calibracion.goalsAvg}, err L/E/V=${(resultado.error * 100).toFixed(1)}%`);
     log(`💾 Parámetros guardados en localStorage (${partidos.length} partidos calibrados)`);
 
     return { recalibrado: true, params: resultado.calibracion, historial: resultado.historial };
@@ -214,7 +161,9 @@ export const AutoCalibrate = {
       const estado = this.getEstado(key);
       if (estado.params) {
         params[key] = {
+          v: MODEL_VERSION,
           params: estado.params,
+          tasas: estado.tasas ? { homeRate: estado.tasas.homeRate, drawRate: estado.tasas.drawRate, awayRate: estado.tasas.awayRate } : undefined,
           partidosCalibrados: estado.partidosCalibrados,
           ultima: estado.ultima,
           error: estado.error,
