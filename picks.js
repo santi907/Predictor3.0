@@ -57,6 +57,10 @@ export function generarPicks(data, ligaKey) {
     picks.push({ label: 'Ambos marcan (Sí)', prob: data.btts });
   }
 
+  // Córners TOTALES (Over 7.5 / 8.5 / 9.5).
+  // Los córners por equipo (local Over 3.5 y visitante Over 3.5) se quitaron:
+  // el modelo sobreestimaba sistemáticamente los córners visitante y generaba
+  // picks de baja calidad sin cuota verificable.
   if (data.cornerProbs) {
     const lineasCorners = [
       { label: 'Over 9.5 córners', prob: data.cornerProbs.over9 },
@@ -69,13 +73,6 @@ export function generarPicks(data, ligaKey) {
         break;
       }
     }
-  }
-
-  if (data.cornerProbs?.porEquipo) {
-    const cL = data.cornerProbs.porEquipo.local?.over3;
-    const cV = data.cornerProbs.porEquipo.visitante?.over3;
-    if (cL != null && cL >= U.umbralCorners) picks.push({ label: `Córners ${data.homeTeam} Over 3.5`, prob: cL });
-    if (U.cornersVisitante && cV != null && cV >= U.umbralCorners) picks.push({ label: `Córners ${data.awayTeam} Over 3.5`, prob: cV });
   }
 
   return picks;
