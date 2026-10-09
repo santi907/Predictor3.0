@@ -107,8 +107,6 @@ class MarketStats {
 // ============ CALIBRACIÓN ============
 // Delegamos en AutoCalibrate.ejecutar para que se use EXACTAMENTE la misma
 // calibración que va a quedar guardada en localStorage y que va a usar la app.
-// Antes se calibraba dos veces (una con todos los partidos, otra con la ventana
-// de 200) y el backtest medía con parámetros que nunca llegaban a la app.
 async function calibrarLiga(leagueKey, partidos) {
   partidos = [...partidos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
@@ -186,9 +184,8 @@ function renderCalibracion(resultado) {
       <h3 class="corner-team-title">Umbrales activos para ${leagueKey}</h3>
       <div class="compare-row"><span>1X2 favorito mínimo</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${umbrales.umbral1x2}%</span></div>
       <div class="compare-row"><span>Goles (Over X.5)</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${umbrales.umbralGoles}%</span></div>
-      <div class="compare-row"><span>Córners</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${umbrales.umbralCorners}%</span></div>
+      <div class="compare-row"><span>Córners totales</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${umbrales.umbralCorners}%</span></div>
       <div class="compare-row"><span>BTTS</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${umbrales.umbralBtss}%</span></div>
-      <div class="compare-row"><span>Córners visitante</span><span class="grid-plain"></span><span class="prob" style="color:${umbrales.cornersVisitante ? 'var(--green)' : 'var(--red)'}">${umbrales.cornersVisitante ? 'ON' : 'OFF'}</span></div>
       <div class="compare-row"><span>Filtro EV mínimo</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${FILTRO_EV}</span></div>
       <p style="margin:10px 0 0; font-size:0.8rem; color:var(--chalk-dim)">
         Error total L/E/V: ${fmt(ultimo.err * 100)}% · goles/partido usados: ${calibracion.goalsAvg?.toFixed(2) ?? '—'}.
@@ -209,8 +206,6 @@ function calcularRecomendacion(p, pred, resultProbsFinal, leagueKey) {
     real: p.goles_local != null ? `${p.goles_local}-${p.goles_visitante}` : null,
     resultado: null,
     totalGoles: null,
-    cornersLocal: p.corners_local ?? null,
-    cornersVisit: p.corners_visitante ?? null,
     picks: [],
     sin1x2: null,
     sinEV: [],
@@ -278,6 +273,8 @@ function calcularRecomendacion(p, pred, resultProbsFinal, leagueKey) {
     }
   }
 
+  // Córners TOTALES (Over 7.5 / 8.5 / 9.5).
+  // Los córners por equipo (local Over 3.5 y visitante Over 3.5) se quitaron.
   if (pred.cornerProbs) {
     const lineasC = [
       { code: 'c_over95', label: 'Over 9.5 córners', prob: pred.cornerProbs.over9, umbral: 9.5 },
@@ -297,28 +294,6 @@ function calcularRecomendacion(p, pred, resultProbsFinal, leagueKey) {
     }
   }
 
-  const cL = pred.cornerProbs?.porEquipo?.local?.over3;
-  if (cL != null && cL >= U.umbralCorners) {
-    const hit = rec.cornersLocal != null ? rec.cornersLocal > 3.5 : null;
-    rec.picks.push({
-      mercado: 'Córners', code: 'cl_over35',
-      label: `Córners ${p.local} Over 3.5`, prob: cL,
-      casaOdds: null, hit, tieneReal: rec.cornersLocal != null, sinCuota: true,
-    });
-  }
-
-  if (U.cornersVisitante) {
-    const cV = pred.cornerProbs?.porEquipo?.visitante?.over3;
-    if (cV != null && cV >= U.umbralCorners) {
-      const hit = rec.cornersVisit != null ? rec.cornersVisit > 3.5 : null;
-      rec.picks.push({
-        mercado: 'Córners', code: 'cv_over35',
-        label: `Córners ${p.visitante} Over 3.5`, prob: cV,
-        casaOdds: null, hit, tieneReal: rec.cornersVisit != null, sinCuota: true,
-      });
-    }
-  }
-
   return rec;
 }
 
@@ -334,8 +309,6 @@ class PicksStats {
       'Córners totales Over 7.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 7.5 córners totales' },
       'Córners totales Over 8.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 8.5 córners totales' },
       'Córners totales Over 9.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 9.5 córners totales' },
-      'Córners local Over 3.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Córners local Over 3.5' },
-      'Córners visitante Over 3.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Córners visitante Over 3.5' },
     };
     this.partidosConPick = 0;
   }
@@ -355,8 +328,6 @@ class PicksStats {
         if (pick.code === 'c_over75') key = 'Córners totales Over 7.5';
         else if (pick.code === 'c_over85') key = 'Córners totales Over 8.5';
         else if (pick.code === 'c_over95') key = 'Córners totales Over 9.5';
-      } else if (pick.mercado === 'Córners') {
-        key = pick.code === 'cl_over35' ? 'Córners local Over 3.5' : 'Córners visitante Over 3.5';
       }
       if (!key || !this.mercados[key]) continue;
       this.mercados[key].n++;
@@ -377,7 +348,6 @@ class PicksStats {
         rate: v.n ? v.hits / v.n * 100 : null,
         profit: v.profit,
         nCuota: v.nCuota,
-        // ROI solo sobre picks con cuota real (antes dividía también por los que no tenían)
         roi: v.nCuota ? (v.profit / v.nCuota) * 100 : null,
       });
     }
@@ -436,9 +406,8 @@ function renderPicks(recs, stats, leagueKey) {
         1X2 ≥ ${U.umbral1x2}% ·
         Goles ≥ ${U.umbralGoles}% ·
         BTTS ≥ ${U.umbralBtss}% ·
-        Córners ≥ ${U.umbralCorners}% ·
-        Filtro EV ≥ ${FILTRO_EV} ·
-        Córners visitante: ${U.cornersVisitante ? 'activado' : 'desactivado'}.
+        Córners totales ≥ ${U.umbralCorners}% ·
+        Filtro EV ≥ ${FILTRO_EV}.
         <br><strong>Partidos sin picks:</strong> ${sinPicks.length}.
       </p>
     </div>`;
@@ -452,10 +421,8 @@ function renderPicks(recs, stats, leagueKey) {
     const picksHTML = r.picks.map(pick => {
       const marca = pick.tieneReal ? (pick.hit ? '✅' : '❌') : '⏳';
       const realDetalle = pick.tieneReal
-        ? (pick.mercado === 'Córners' || pick.mercado === 'Córners totales'
-            ? (pick.mercado === 'Córners'
-                ? `${pick.code === 'cl_over35' ? r.cornersLocal : r.cornersVisit} córners`
-                : `${(r.cornersLocal ?? 0) + (r.cornersVisit ?? 0)} córners`)
+        ? (pick.mercado === 'Córners totales'
+            ? `${(p.cornersLocal ?? 0) + (p.cornersVisit ?? 0)} córners`
             : `${r.totalGoles} goles`)
         : '';
       const ev = valorEV(pick.prob, pick.casaOdds);
@@ -501,8 +468,6 @@ runBtn.addEventListener('click', async () => {
   const partidos = historial.partidos;
   const umbrales = getUmbrales(leagueKey);
 
-  // Una sola calibración: la que guarda params en localStorage es la misma
-  // que se usa para medir el backtest.
   const calResult = await calibrarLiga(leagueKey, partidos);
   const calibracion = calResult.calibracion;
   const tasas = calResult.tasas;
@@ -510,7 +475,7 @@ runBtn.addEventListener('click', async () => {
 
   log(`\n▶ Corriendo backtest con calibración ${calibracion ? 'ACTIVA' : 'por defecto'}...`);
   log(`   Filtro EV ≥ ${FILTRO_EV} aplicado a picks con cuota.`);
-  log(`   Umbrales ${leagueKey}: 1X2 ≥${umbrales.umbral1x2}% · Goles ≥${umbrales.umbralGoles}% · BTTS ≥${umbrales.umbralBtss}% · Córners ≥${umbrales.umbralCorners}%`);
+  log(`   Umbrales ${leagueKey}: 1X2 ≥${umbrales.umbral1x2}% · Goles ≥${umbrales.umbralGoles}% · BTTS ≥${umbrales.umbralBtss}% · Córners totales ≥${umbrales.umbralCorners}%`);
 
   const markets = {
     local: new MarketStats('Local gana'),
@@ -523,8 +488,6 @@ runBtn.addEventListener('click', async () => {
     corners75: new MarketStats('Over 7.5 córners'),
     corners85: new MarketStats('Over 8.5 córners'),
     corners95: new MarketStats('Over 9.5 córners'),
-    cornersLocal35: new MarketStats('Córners local Over 3.5'),
-    cornersVisit35: new MarketStats('Córners visitante Over 3.5'),
   };
   const mercado = {
     local: new MarketStats('Local gana'), empate: new MarketStats('Empate'), visitante: new MarketStats('Visitante gana'),
@@ -601,8 +564,6 @@ runBtn.addEventListener('click', async () => {
       markets.corners75.add(pred.cornerProbs.over7, totalCorners > 7.5);
       markets.corners85.add(pred.cornerProbs.over8, totalCorners > 8.5);
       markets.corners95.add(pred.cornerProbs.over9, totalCorners > 9.5);
-      markets.cornersLocal35.add(pred.cornerProbs.porEquipo?.local?.over3, p.corners_local > 3.5);
-      markets.cornersVisit35.add(pred.cornerProbs.porEquipo?.visitante?.over3, p.corners_visitante > 3.5);
     }
 
     filasComparacion.push({
@@ -612,8 +573,6 @@ runBtn.addEventListener('click', async () => {
         over15: pred.over15, over25: pred.over25, over35: pred.over35, btts: pred.btts,
         corners_over75: pred.cornerProbs?.over7 ?? null, corners_over85: pred.cornerProbs?.over8 ?? null,
         corners_over95: pred.cornerProbs?.over9 ?? null,
-        corners_local_over35: pred.cornerProbs?.porEquipo?.local?.over3 ?? null,
-        corners_visit_over35: pred.cornerProbs?.porEquipo?.visitante?.over3 ?? null,
       },
       real: {
         goles_local: p.goles_local, goles_visitante: p.goles_visitante,
@@ -738,7 +697,6 @@ function exportarComparacionCSV(filas) {
     'APP_local','APP_empate','APP_visitante',
     'APP_over15','APP_over25','APP_over35','APP_btts',
     'APP_corners_over75','APP_corners_over85','APP_corners_over95',
-    'APP_corners_local_over35','APP_corners_visit_over35',
     'REAL_goles_local','REAL_goles_visitante','REAL_total_goles','REAL_resultado',
     'REAL_over15','REAL_over25','REAL_over35','REAL_btts',
     'REAL_corners_local','REAL_corners_visitante','REAL_corners_total',
@@ -768,7 +726,6 @@ function exportarComparacionCSV(filas) {
       num(f.app.local), num(f.app.empate), num(f.app.visitante),
       num(f.app.over15), num(f.app.over25), num(f.app.over35), num(f.app.btts),
       num(f.app.corners_over75), num(f.app.corners_over85), num(f.app.corners_over95),
-      num(f.app.corners_local_over35), num(f.app.corners_visit_over35),
       f.real.goles_local, f.real.goles_visitante, f.real.total_goles, f.real.resultado,
       f.real.over15, f.real.over25, f.real.over35, f.real.btts,
       f.real.corners_local ?? '', f.real.corners_visitante ?? '', f.real.corners_total ?? '',
