@@ -1,7 +1,7 @@
 // backtest.js
 import { LIGAS, HOME_ADVANTAGE, DIXON_COLES_RHO, FILTRO_EV, SHRINK_ALPHA, getUmbrales } from './leagues.js';
 import { simulateMatch } from './model.js';
-import { calcularTasasBase, calibrarLigaMLE, shrinkHaciaBase } from './calibrate.js';
+import { calcularTasasBase, shrinkHaciaBase } from './calibrate.js';
 import { AutoCalibrate } from './auto-calibrate.js';
 
 // ============ CONFIGURACIÓN ============
@@ -105,39 +105,56 @@ class MarketStats {
 }
 
 // ============ CALIBRACIÓN ============
-// HA y rho por máxima verosimilitud sobre los marcadores reales, con hold-out
-// cronológico (ver calibrate.js). Reemplaza el viejo ajuste iterativo que
-// igualaba tasas L/E/V y dejaba a rho pegado a los límites.
+// Delegamos en AutoCalibrate.ejecutar para que se use EXACTAMENTE la misma
+// calibración que va a quedar guardada en localStorage y que va a usar la app.
+// Antes se calibraba dos veces (una con todos los partidos, otra con la ventana
+// de 200) y el backtest medía con parámetros que nunca llegaban a la app.
 async function calibrarLiga(leagueKey, partidos) {
   partidos = [...partidos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
-  const tasas = calcularTasasBase(partidos);
-  if (tasas.n < CAL_MIN_PARTIDOS) {
-    log(`⚠️ Solo ${tasas.n} partidos — se omite la calibración.`);
-    return { calibracion: null, tasas, historial: [], leagueKey };
+  const tasasFull = calcularTasasBase(partidos);
+  if (tasasFull.n < CAL_MIN_PARTIDOS) {
+    log(`⚠️ Solo ${tasasFull.n} partidos — se omite la calibración.`);
+    return { calibracion: null, tasas: tasasFull, historial: [], leagueKey };
   }
 
-  log(`\n🎯 Calibrando liga (${tasas.n} partidos) por máxima verosimilitud...`);
-  log(`   Tasa real: local ${fmt(tasas.homeRate*100)}% · empate ${fmt(tasas.drawRate*100)}% · visitante ${fmt(tasas.awayRate*100)}%`);
+  log(`\n🎯 Calibrando ${leagueKey} por máxima verosimilitud (ventana de ${AutoCalibrate.CONFIG.VENTANA} partidos)...`);
+  const auto = await AutoCalibrate.ejecutar(leagueKey, partidos, { force: true, onLog: log });
 
-  const r = await calibrarLigaMLE(leagueKey, partidos, { onLog: log, minPartidos: CAL_MIN_PARTIDOS });
-  if (!r.calibracion) {
-    log(`⚠️ ${r.razon} — se omite la calibración.`);
-    return { calibracion: null, tasas, historial: [], leagueKey };
+  if (!auto.calibracion) {
+    log(`⚠️ ${auto.razon || 'No se pudo calibrar'} — se omite la calibración.`);
+    return {
+      calibracion: null,
+      tasas: auto.tasas || tasasFull,
+      historial: auto.historial || [],
+      leagueKey,
+      diagnostico: auto.diagnostico,
+    };
   }
+
   log(`   ℹ️ Las métricas de abajo se miden sobre los mismos partidos usados para ajustar (in-sample); el hold-out de arriba es la señal fuera de muestra.`);
-  return { calibracion: r.calibracion, tasas, historial: r.historial, leagueKey, diagnostico: r.diagnostico };
+  return {
+    calibracion: auto.calibracion,
+    tasas: auto.tasas || tasasFull,
+    historial: auto.historial || [],
+    leagueKey,
+    diagnostico: auto.diagnostico,
+  };
 }
 
 function renderCalibracion(resultado) {
   if (!resultado) return;
   const { calibracion, tasas, historial, leagueKey } = resultado;
   calibrationSection.style.display = 'block';
+
   if (!calibracion) {
-    calibrationContent.innerHTML = `<p style="color:var(--chalk-dim)">Liga con ${tasas.n} partidos — no se calibró (mínimo ${CAL_MIN_PARTIDOS}).</p>`;
+    calibrationContent.innerHTML = `<p style="color:var(--chalk-dim)">Liga con ${tasas?.n ?? 0} partidos — no se calibró (mínimo ${CAL_MIN_PARTIDOS}).</p>`;
     return;
   }
-  const ultimo = historial[historial.length - 1];
+
+  const ultimo = historial?.[historial.length - 1];
+  if (!ultimo) return;
+
   const fila = (label, real, pred) => {
     const d = Math.abs(real - pred);
     const color = d < 0.03 ? 'var(--green)' : d < 0.06 ? 'var(--yellow)' : 'var(--red)';
@@ -484,12 +501,12 @@ runBtn.addEventListener('click', async () => {
   const partidos = historial.partidos;
   const umbrales = getUmbrales(leagueKey);
 
+  // Una sola calibración: la que guarda params en localStorage es la misma
+  // que se usa para medir el backtest.
   const calResult = await calibrarLiga(leagueKey, partidos);
   const calibracion = calResult.calibracion;
   const tasas = calResult.tasas;
   renderCalibracion(calResult);
-
-  await AutoCalibrate.ejecutar(leagueKey, partidos, { force: true, onLog: log });
 
   log(`\n▶ Corriendo backtest con calibración ${calibracion ? 'ACTIVA' : 'por defecto'}...`);
   log(`   Filtro EV ≥ ${FILTRO_EV} aplicado a picks con cuota.`);
@@ -539,7 +556,7 @@ runBtn.addEventListener('click', async () => {
       continue;
     }
 
-    const resultProbsFinal = SHRINK_ALPHA > 0
+    const resultProbsFinal = SHRINK_ALPHA > 0 && tasas
       ? shrinkHaciaBase(pred.resultProbs, tasas, SHRINK_ALPHA)
       : pred.resultProbs;
 
