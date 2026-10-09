@@ -1,8 +1,7 @@
 // auto-calibrate.js
-// Recalibra automáticamente cada 30 partidos nuevos, con ventana de 200.
-// Guarda params en localStorage Y permite exportar a params.json.
-// v2: usa calibración por máxima verosimilitud (calibrate.js) e ignora params
-// guardados con otra versión del modelo (MODEL_VERSION).
+// MEJORA: sanearTasas valida las tasas guardadas/cargadas. ejecutar devuelve
+// más info (tasas, historial, error, diagnóstico) para que el backtest use
+// exactamente lo mismo que la app.
 
 import { LIGAS, MODEL_VERSION } from './leagues.js';
 import { calibrarLigaMLE, sanearParams } from './calibrate.js';
@@ -10,15 +9,12 @@ import { calibrarLigaMLE, sanearParams } from './calibrate.js';
 const STORAGE_PREFIX = 'autocal_';
 const PARAMS_JSON_URL = './params.json';
 
-// Valida tasas guardadas (fracciones que suman ~1). Si están corruptas o
-// vienen de un formato viejo, devuelve null y el shrinkage simplemente no se
-// aplica — mejor eso que shrinkear hacia una base mal calculada.
 function sanearTasas(t) {
   if (!t) return null;
   const { homeRate, drawRate, awayRate } = t;
   if (![homeRate, drawRate, awayRate].every(v => Number.isFinite(v) && v >= 0 && v <= 1)) return null;
   const suma = homeRate + drawRate + awayRate;
-  if (Math.abs(suma - 1) > 0.15) return null; // no suman ~1, dato corrupto
+  if (Math.abs(suma - 1) > 0.15) return null;
   return {
     homeRate, drawRate, awayRate,
     n: Number.isFinite(t.n) ? t.n : undefined,
@@ -33,17 +29,13 @@ export const AutoCalibrate = {
     ERROR_CONV: 0.02,
   },
 
-  // ============ CACHE DE params.json ============
   _paramsJSONCache: null,
 
   async cargarParamsJSON() {
     if (this._paramsJSONCache !== null) return this._paramsJSONCache;
     try {
       const res = await fetch(PARAMS_JSON_URL + '?t=' + Date.now());
-      if (!res.ok) {
-        this._paramsJSONCache = {};
-        return {};
-      }
+      if (!res.ok) { this._paramsJSONCache = {}; return {}; }
       const data = await res.json();
       this._paramsJSONCache = data || {};
       console.log(`📂 params.json cargado (${Object.keys(this._paramsJSONCache).length} ligas)`);
@@ -55,13 +47,11 @@ export const AutoCalibrate = {
     }
   },
 
-  // ============ ESTADO (localStorage) ============
   getEstado(ligaKey) {
     try {
       const raw = localStorage.getItem(`${STORAGE_PREFIX}${ligaKey}`);
       if (!raw) return { partidosCalibrados: 0, params: null, ultima: null };
       const est = JSON.parse(raw);
-      // Parámetros calibrados con otra versión del modelo: se descartan.
       if (est.v !== MODEL_VERSION) return { partidosCalibrados: 0, params: null, ultima: null };
       return est;
     } catch (e) {
@@ -77,17 +67,13 @@ export const AutoCalibrate = {
     }
   },
 
-  // ============ PARAMS ACTIVOS ============
-  // Prioridad: localStorage (más reciente) > params.json > null
   async getParamsActivos(ligaKey) {
-    // 1. localStorage (el usuario acaba de calibrar)
     const estado = this.getEstado(ligaKey);
     const local = sanearParams(estado.params);
     if (local) {
       return { ...local, fuente: 'local', tasas: sanearTasas(estado.tasas) };
     }
 
-    // 2. params.json (del repo, sincronizado). Se ignoran entradas de otra versión.
     const paramsJSON = await this.cargarParamsJSON();
     const entrada = paramsJSON[ligaKey];
     if (entrada?.params && entrada.v === MODEL_VERSION) {
@@ -95,11 +81,9 @@ export const AutoCalibrate = {
       if (repo) return { ...repo, fuente: 'repo', tasas: sanearTasas(entrada.tasas) };
     }
 
-    // 3. Nada
     return null;
   },
 
-  // Versión sync (solo localStorage) — para compatibilidad
   getParamsActivosSync(ligaKey) {
     const estado = this.getEstado(ligaKey);
     return sanearParams(estado.params);
@@ -112,7 +96,6 @@ export const AutoCalibrate = {
     return nuevos >= this.CONFIG.PASO || !estado.params;
   },
 
-  // ============ CALIBRACIÓN ============
   async calibrar(ligaKey, partidos, onLog = null) {
     const r = await calibrarLigaMLE(ligaKey, partidos, { onLog, minPartidos: this.CONFIG.MIN_PARTIDOS });
     if (!r.calibracion) {
@@ -133,7 +116,6 @@ export const AutoCalibrate = {
     };
   },
 
-  // ============ FLUJO PRINCIPAL ============
   async ejecutar(ligaKey, partidos, { force = false, onLog = null } = {}) {
     const log = (msg) => { if (onLog) onLog(msg); console.log(msg); };
 
@@ -204,7 +186,7 @@ export const AutoCalibrate = {
     return {
       recalibrado: true,
       calibracion: resultado.calibracion,
-      params: resultado.calibracion, // compatibilidad con la API previa
+      params: resultado.calibracion,
       tasas: resultado.tasas,
       historial: resultado.historial || [],
       error: resultado.error,
@@ -212,7 +194,6 @@ export const AutoCalibrate = {
     };
   },
 
-  // ============ EXPORTAR PARAMS.JSON ============
   exportarParamsJSON() {
     const params = {};
     for (const key of Object.keys(LIGAS)) {
@@ -245,17 +226,13 @@ export const AutoCalibrate = {
     console.log(`📥 params.json descargado (${Object.keys(params).length} ligas)`);
   },
 
-  // ============ RESET ============
-  reset(ligaKey) {
-    localStorage.removeItem(`${STORAGE_PREFIX}${ligaKey}`);
-  },
+  reset(ligaKey) { localStorage.removeItem(`${STORAGE_PREFIX}${ligaKey}`); },
   resetAll() {
     for (const key of Object.keys(LIGAS)) {
       localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
     }
   },
 
-  // ============ REPORTE ============
   getReporte() {
     const reporte = {};
     for (const key of Object.keys(LIGAS)) {
