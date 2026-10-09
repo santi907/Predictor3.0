@@ -1,3 +1,7 @@
+// model.js
+// MEJORA: normalizarML ahora normaliza cada campo por separado (antes decidía
+// con la suma y rompía si venían mezclados porcentaje y fracción).
+
 import {
   LIGAS, TEAM_STRENGTH_DB, HOME_ADVANTAGE, CORNER_HOME_BIAS, CORNER_HOME_BIAS_LEAGUE,
   DEFAULT_HOME_ADV, HA_MIN, HA_MAX,
@@ -28,11 +32,6 @@ async function getDynamicData(leagueKey, leagueDisplayName) {
   }
 }
 
-// ============ RATINGS ESTÁTICOS (normalizados) ============
-// Los ratings de leagues.js se reescalan para que la media de ataque y de
-// defensa de la liga sea exactamente 1.0 (así lambdaLocal + lambdaVisita
-// promedia el goalsAvg de la liga) y se acercan un poco a 1.0 para frenar
-// valores extremos (muestras chicas).
 const normCache = {};
 
 function normalizarSubLiga(subKey) {
@@ -63,13 +62,11 @@ export function getTeamsForLeague(leagueKey) {
   return normalizarSubLiga(leagueKey);
 }
 
-// Rating estático normalizado de un equipo (o null si no existe).
 export function getStaticRating(leagueKey, teamName) {
   const teams = getTeamsForLeague(leagueKey);
   return teams[teamName] || buscarEquipoEn(teams, teamName) || null;
 }
 
-// Rating final = prior estático + evidencia en vivo, ponderada por partidos jugados.
 function getTeamRating(leagueKey, teamName, dynamicRatings) {
   const estatico = getStaticRating(leagueKey, teamName);
   const vivo = buscarEquipoEn(dynamicRatings, teamName);
@@ -88,17 +85,13 @@ function getTeamRating(leagueKey, teamName, dynamicRatings) {
   };
 }
 
-// Promedio de goles por partido: prior (calibrado o estático) + datos en vivo.
 function resolverGoalsAvg(liga, dynamic, calibracion) {
   const prior = Number.isFinite(calibracion?.goalsAvg) ? calibracion.goalsAvg : liga.goalsAvg;
   if (!dynamic?.goalsAvg || !dynamic.totalPlayed) return prior;
-  const partidosVivo = dynamic.totalPlayed / 2; // totalPlayed cuenta cada partido dos veces
+  const partidosVivo = dynamic.totalPlayed / 2;
   return (partidosVivo * dynamic.goalsAvg + GOALS_AVG_PRIOR_MATCHES * prior) / (partidosVivo + GOALS_AVG_PRIOR_MATCHES);
 }
 
-// ============ LAMBDAS (usado también por la calibración) ============
-// HA = cociente goles local / goles visitante. Se reparte en forma simétrica
-// para que el TOTAL esperado siga siendo ~goalsAvg (antes se inflaba).
 export function calcLambdas(goalsAvg, hRating, aRating, homeAdv) {
   const avgPerTeam = goalsAvg / 2;
   const ha = clamp(homeAdv, HA_MIN, HA_MAX);
@@ -109,17 +102,14 @@ export function calcLambdas(goalsAvg, hRating, aRating, homeAdv) {
   };
 }
 
-// ============ ML DE BZZOIRO ============
-// Normaliza cada campo POR SEPARADO. Antes se decidía si venían en fracción o
-// en porcentaje mirando la suma de resultProbs y esa decisión se aplicaba a
-// TODOS los campos, lo que rompía si la API devolvía, por ejemplo, el 1X2 en
-// porcentaje pero over/btts en fracción (o al revés).
+// MEJORA: normalizar cada campo por separado. Antes se usaba la suma de
+// resultProbs para decidir si todo venía en fracción o en porcentaje, y eso
+// rompía si la API mezclaba (ej. 1X2 en % pero over/btts en fracción).
 function normalizarML(ml) {
   const rp = ml.resultProbs || {};
 
   const toPct = (v) => {
     if (typeof v !== 'number' || !Number.isFinite(v)) return null;
-    // 0..1.5 => fracción (0.45 -> 45). Cualquier otro valor => ya es porcentaje.
     return v <= 1.5 ? +(v * 100).toFixed(1) : +v.toFixed(1);
   };
 
@@ -162,7 +152,6 @@ function blend(own, ml) {
   };
 }
 
-// ============ SIMULACIÓN ============
 export async function simulateMatch(leagueKey, homeTeam, awayTeam, {
   staticOnly = false,
   calibracion = null,
@@ -177,13 +166,11 @@ export async function simulateMatch(leagueKey, homeTeam, awayTeam, {
   const hRating = getTeamRating(leagueKey, homeTeam, dynamic?.teamRatings);
   const aRating = getTeamRating(leagueKey, awayTeam, dynamic?.teamRatings);
 
-  // Si llega una calibración con homeAdvantage/rho se usa esa; si no, leagues.js.
   const homeAdv = calibracion?.homeAdvantage ?? HOME_ADVANTAGE[leagueKey] ?? DEFAULT_HOME_ADV;
-  const rho = calibracion?.rho; // undefined = usar el de leagues.js
+  const rho = calibracion?.rho;
 
   const { lambdaHome, lambdaAway } = calcLambdas(goalsAvg, hRating, aRating, homeAdv);
 
-  // Todos los mercados de goles salen de la misma grilla Dixon-Coles.
   const mk = stats.calcGoalMarkets(lambdaHome, lambdaAway, leagueKey, rho);
 
   let cornerProbs = null;
