@@ -1,6 +1,7 @@
 // ============================================================
-// api.js – llamadas a la API externa de Bzzoiro (standings, temporada
-// y predicciones ML en vivo)
+// api.js – llamadas a la API externa de Bzzoiro
+// Mejoras: timeout + reintentos con backoff, no cachear null transitorio,
+// filtro defensivo de fecha en la predicción ML.
 // ============================================================
 import { BZZOIRO_COUNTRY } from './leagues.js';
 
@@ -18,14 +19,8 @@ function getToken() {
   return null;
 }
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
-// Fetch con timeout y reintentos con backoff.
-// - 4xx (excepto 429): error definitivo, no reintenta.
-// - 429 y 5xx: reintenta con espera exponencial (400ms, 800ms, ...).
-// - Timeout / error de red: reintenta igual.
 async function fetchFromAPI(endpoint, {
   timeoutMs = DEFAULT_TIMEOUT_MS,
   retries = DEFAULT_RETRIES,
@@ -51,13 +46,10 @@ async function fetchFromAPI(endpoint, {
       const err = new Error(`Error ${res.status}: ${errorText}`);
       err.status = res.status;
 
-      // 4xx definitivo (excepto 429): no reintentar, propagar ya.
       if (res.status >= 400 && res.status < 500 && res.status !== 429) throw err;
-
       ultimoError = err;
     } catch (e) {
       clearTimeout(timer);
-      // Si fue un 4xx definitivo lanzado arriba, propagar sin reintentar.
       if (e.status && e.status >= 400 && e.status < 500 && e.status !== 429) throw e;
       ultimoError = e.name === 'AbortError'
         ? new Error(`Timeout tras ${timeoutMs}ms en ${endpoint}`)
@@ -86,8 +78,6 @@ function todasLasPalabrasEstan(chicas, grandes) {
   return chicas.length > 0 && chicas.every(t => set.has(t));
 }
 
-// Busca un equipo en un mapa {nombre: dato} aunque el nombre difiera
-// ("Manchester City" vs "Manchester City FC"). Devuelve el dato o null.
 export function buscarEquipoEn(mapa, nombre) {
   if (!mapa || !nombre) return null;
   if (mapa[nombre]) return mapa[nombre];
@@ -102,7 +92,6 @@ export function buscarEquipoEn(mapa, nombre) {
   });
   if (candidatos.length === 1) return mapa[candidatos[0]];
   if (candidatos.length > 1) {
-    // varios posibles: nos quedamos con el de longitud más parecida
     candidatos.sort((a, b) => Math.abs(tokens(a).length - tk.length) - Math.abs(tokens(b).length - tk.length));
     const mejor = Math.abs(tokens(candidatos[0]).length - tk.length);
     const segundo = Math.abs(tokens(candidatos[1]).length - tk.length);
@@ -174,9 +163,8 @@ async function resolveCurrentSeason(bzzoiroLeagueId) {
     seasonIdCache.set(bzzoiroLeagueId, season.id);
     return season.id;
   } catch (e) {
-    // Solo cacheamos null si el error es definitivo (404: la liga no tiene
-    // temporada publicada). Si fue timeout, 5xx o error de red, NO cacheamos:
-    // así el próximo intento puede volver a probar.
+    // MEJORA: solo cachear null si es 404 (definitivo). Un timeout o 5xx no
+    // debe matar la temporada por toda la sesión.
     if (e.status === 404) {
       seasonIdCache.set(bzzoiroLeagueId, null);
       return null;
@@ -224,8 +212,6 @@ export async function fetchLeagueDynamicData(leagueKey, leagueDisplayName) {
   const goalsAvg = totalPlayed > 0 ? (totalGF / totalPlayed) * 2 : null;
   if (!goalsAvg) throw new Error('Datos insuficientes (0 partidos jugados)');
 
-  // Ratings CRUDOS relativos al promedio de la liga + partidos jugados.
-  // La mezcla con el rating estático (prior) y el encogimiento los hace model.js.
   const teamRatings = {};
   for (const [name, s] of Object.entries(teamStats)) {
     if (s.played < 2) continue;
@@ -267,9 +253,7 @@ export async function fetchMatchPrediction(bzzoiroLeagueId, homeTeam, awayTeam) 
 
       if (!(matchHome && matchAway)) return false;
 
-      // Filtro defensivo de fecha: la API ya limita a [hoy, +21d], pero si
-      // algún resultado viniera fuera de esa ventana (por ejemplo por cache
-      // del server), lo descartamos para no mezclar con otra temporada.
+      // MEJORA: filtro defensivo de fecha, para no mezclar con otra temporada.
       const fechaStr = p.event?.event_date || p.event?.date || p.event_date || p.date;
       if (fechaStr) {
         const fechaEv = new Date(fechaStr).getTime();
