@@ -65,7 +65,11 @@ export function ajustarRho(rhoActual, tasas, predDrawRate) {
 }
 
 // ---- Máxima verosimilitud ----
-const SIGMA_HA = 0.15;
+// SIGMA_HA controla cuánto se puede alejar HA del prior de leagues.js sin
+// pagar penalización. Antes 0.15 permitía que HA se fuera a 1.37 cuando la
+// ganancia en log-verosimilitud era estadísticamente nula (t≈0.84), pero
+// empeoraba el error L/E/V de 6.7% a 8.3%. Con 0.10 el prior pesa más.
+const SIGMA_HA = 0.10;
 const SIGMA_RHO = 0.06;
 const HOLDOUT_FRAC = 0.25;
 const HOLDOUT_MIN_N = 40;
