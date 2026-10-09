@@ -1,7 +1,6 @@
 // picks.js
-// Lógica de picks compartida (testeable sin DOM). Usa los MISMOS umbrales por
-// liga y el MISMO shrinkage hacia las tasas base que valida backtest.js, así lo
-// que muestra la app coincide con lo que se midió en el backtest.
+// MEJORA: se quitaron los córners por equipo (local Over 3.5 y visitante
+// Over 3.5). Quedan solo los córners totales (Over 7.5 / 8.5 / 9.5).
 
 import { LIGAS, getUmbrales, SHRINK_ALPHA } from './leagues.js';
 import { shrinkHaciaBase } from './calibrate.js';
@@ -18,8 +17,6 @@ export function esMercadoValido(ligaKey, mercado) {
   return config.mercados.some(m => mercado.includes(m));
 }
 
-// Acerca el 1X2 a las tasas reales de la liga (igual que el backtest).
-// Si no hay tasas guardadas devuelve el 1X2 sin tocar.
 export function aplicarShrink(resultProbs, tasas, alpha = SHRINK_ALPHA) {
   if (!tasas || !(alpha > 0)) return resultProbs;
   if (![tasas.homeRate, tasas.drawRate, tasas.awayRate].every(Number.isFinite)) return resultProbs;
@@ -57,10 +54,7 @@ export function generarPicks(data, ligaKey) {
     picks.push({ label: 'Ambos marcan (Sí)', prob: data.btts });
   }
 
-  // Córners TOTALES (Over 7.5 / 8.5 / 9.5).
-  // Los córners por equipo (local Over 3.5 y visitante Over 3.5) se quitaron:
-  // el modelo sobreestimaba sistemáticamente los córners visitante y generaba
-  // picks de baja calidad sin cuota verificable.
+  // Córners TOTALES solamente.
   if (data.cornerProbs) {
     const lineasCorners = [
       { label: 'Over 9.5 córners', prob: data.cornerProbs.over9 },
