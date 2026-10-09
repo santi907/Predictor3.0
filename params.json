@@ -33,3 +33,105 @@
   },
   "JPL": {
     "v": 2,
+    "params": {
+      "homeAdvantage": 1.19,
+      "rho": -0.08,
+      "goalsAvg": 2.891
+    },
+    "tasas": {
+      "homeRate": 0.44,
+      "drawRate": 0.215,
+      "awayRate": 0.345
+    },
+    "partidosCalibrados": 200,
+    "ultima": "2026-10-09T00:50:42.684Z",
+    "error": 0.09325555555555567
+  },
+  "BSB": {
+    "v": 2,
+    "params": {
+      "homeAdvantage": 1.45,
+      "rho": -0.04,
+      "goalsAvg": 2.362
+    },
+    "tasas": {
+      "homeRate": 0.5,
+      "drawRate": 0.235,
+      "awayRate": 0.265
+    },
+    "partidosCalibrados": 200,
+    "ultima": "2026-10-09T00:43:38.204Z",
+    "error": 0.09499999999999997
+  },
+  "SD2": {
+    "v": 2,
+    "params": {
+      "homeAdvantage": 1.28,
+      "rho": -0.06,
+      "goalsAvg": 2.543
+    },
+    "tasas": {
+      "homeRate": 0.45,
+      "drawRate": 0.225,
+      "awayRate": 0.325
+    },
+    "partidosCalibrados": 200,
+    "ultima": "2026-10-09T00:57:47.253Z",
+    "error": 0.11118705035971224
+  },
+  "PL": {
+    "v": 2,
+    "params": {
+      "homeAdvantage": 1.078,
+      "rho": -0.065
+    },
+    "partidosCalibrados": 200,
+    "ultima": "2026-10-04T16:35:47.952Z",
+    "error": 0.02738333333333326,
+    "origen": "v1-saneado"
+  },
+  "MXL": {
+    "v": 2,
+    "params": {
+      "homeAdvantage": 1.281,
+      "rho": -0.082
+    },
+    "partidosCalibrados": 200,
+    "ultima": "2026-10-04T18:15:48.508Z",
+    "error": 0.01846666666666652,
+    "origen": "v1-saneado"
+  },
+  "SPL": {
+    "v": 2,
+    "params": {
+      "homeAdvantage": 1.165,
+      "rho": -0.091
+    },
+    "partidosCalibrados": 200,
+    "ultima": "2026-10-04T16:23:32.515Z",
+    "error": 0.01998333333333313,
+    "origen": "v1-saneado"
+  },
+  "ARG": {
+    "v": 2,
+    "params": {
+      "homeAdvantage": 1.204,
+      "rho": -0.038
+    },
+    "partidosCalibrados": 200,
+    "ultima": "2026-10-04T18:06:41.867Z",
+    "error": 0.01745000000000002,
+    "origen": "v1-saneado"
+  },
+  "CPA": {
+    "v": 2,
+    "params": {
+      "homeAdvantage": 1.263,
+      "rho": -0.095
+    },
+    "partidosCalibrados": 200,
+    "ultima": "2026-10-04T15:56:58.647Z",
+    "error": 0.06664999999999976,
+    "origen": "v1-saneado"
+  }
+}
