@@ -1,13 +1,6 @@
 // calibrate.js
-// Calibración por liga a partir del historial real.
-//
-// v2: HOME_ADVANTAGE y RHO se estiman por MÁXIMA VEROSIMILITUD sobre los
-// marcadores reales (no igualando tasas agregadas de L/E/V, que hacía que rho
-// absorbiera sesgos de los ratings y se pegara al límite). Incluye:
-//   - prior suave hacia los valores de leagues.js (estabiliza muestras chicas)
-//   - hold-out cronológico: los parámetros nuevos solo se aceptan si NO empeoran
-//     la verosimilitud en los partidos más recientes que no usaron para ajustar
-//   - límites de rho/HA válidos (sin probabilidades negativas)
+// v2: máxima verosimilitud con prior suave + hold-out cronológico.
+// SIGMA_HA = 0.15 (revertido de 0.10, que empeoraba el error L/E/V).
 
 import {
   LIGAS, HOME_ADVANTAGE, DIXON_COLES_RHO, DEFAULT_HOME_ADV, DEFAULT_RHO,
@@ -41,7 +34,6 @@ export function calcularTasasBase(partidos) {
   };
 }
 
-// Deja los parámetros dentro de rangos válidos (por si vienen de un archivo viejo).
 export function sanearParams(p) {
   if (!p || !Number.isFinite(p.homeAdvantage) || !Number.isFinite(p.rho)) return null;
   const out = {
@@ -52,7 +44,6 @@ export function sanearParams(p) {
   return out;
 }
 
-// ---- Ajustes heurísticos (se conservan por compatibilidad; ya no se usan) ----
 export function ajustarHomeAdvantage(homeAdvActual, tasas, predHomeRate) {
   const ratio = (tasas.homeRate + 0.02) / (predHomeRate + 0.02);
   const ajuste = Math.pow(ratio, 0.35);
@@ -64,16 +55,11 @@ export function ajustarRho(rhoActual, tasas, predDrawRate) {
   return Math.max(RHO_MIN, Math.min(RHO_MAX, nuevo));
 }
 
-// ---- Máxima verosimilitud ----
-// SIGMA_HA controla cuánto se puede alejar HA del prior de leagues.js sin
-// pagar penalización. Antes 0.15 permitía que HA se fuera a 1.37 cuando la
-// ganancia en log-verosimilitud era estadísticamente nula (t≈0.84), pero
-// empeoraba el error L/E/V de 6.7% a 8.3%. Con 0.10 el prior pesa más.
 const SIGMA_HA = 0.15;
 const SIGMA_RHO = 0.06;
 const HOLDOUT_FRAC = 0.25;
 const HOLDOUT_MIN_N = 40;
-const Z_RECHAZO = 1.64; // se rechaza el ajuste solo si es peor con ~95% de confianza
+const Z_RECHAZO = 1.64;
 
 function logLikPorPartido(matches, goalsAvg, ha, rho) {
   return matches.map(m => {
@@ -108,7 +94,6 @@ export async function calibrarLigaMLE(leagueKey, partidosIn, { onLog = null, min
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   const tasas = calcularTasasBase(todos);
 
-  // Solo se usan partidos donde ambos equipos tienen rating estático.
   const matches = [];
   for (const p of todos) {
     const h = getStaticRating(leagueKey, p.local);
@@ -155,7 +140,6 @@ export async function calibrarLigaMLE(leagueKey, partidosIn, { onLog = null, min
   const calibracion = { homeAdvantage: final.ha, rho: final.rho, goalsAvg: +goalsAvg.toFixed(3) };
   log(`   HA=${final.ha.toFixed(3)} · rho=${final.rho.toFixed(3)} (base ${haPrior.toFixed(3)} / ${rhoPrior.toFixed(3)})`);
 
-  // Diagnóstico: tasas L/E/V que predice el modelo vs las reales.
   const paso = Math.max(1, Math.floor(n / 80));
   let sL = 0, sE = 0, sV = 0, k = 0;
   for (let i = 0; i < n; i += paso) {
@@ -173,8 +157,6 @@ export async function calibrarLigaMLE(leagueKey, partidosIn, { onLog = null, min
   return { calibracion, tasas, historial, error: err, diagnostico: { n, sinRating, holdout, aceptado }, leagueKey };
 }
 
-// Mezcla las probabilidades del modelo con las tasas base de la liga.
-// alpha=0 → solo modelo. alpha=1 → solo tasa base. Default suave: 0.15.
 export function shrinkHaciaBase(resultProbs, tasas, alpha = 0.15) {
   const modelo = {
     local: resultProbs.local,
