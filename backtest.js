@@ -1,12 +1,16 @@
 // backtest.js
+// MEJORAS:
+// - Una sola calibración (la que guarda params es la que usa el backtest).
+// - Se quitaron los córners por equipo (local/visitante Over 3.5).
+// - try/catch en renderPicks y renderResults: si uno falla, el otro igual corre.
+// - Se fuerzan TODAS las secciones visibles al final, para que nunca
+//   desaparezcan los botones de exportar ni la tabla de resultados.
+
 import { LIGAS, HOME_ADVANTAGE, DIXON_COLES_RHO, FILTRO_EV, SHRINK_ALPHA, getUmbrales } from './leagues.js';
 import { simulateMatch } from './model.js';
 import { calcularTasasBase, shrinkHaciaBase } from './calibrate.js';
 import { AutoCalibrate } from './auto-calibrate.js';
 
-// ============ CONFIGURACIÓN ============
-// FILTRO_EV, SHRINK_ALPHA y los umbrales por liga viven en leagues.js
-// (los comparte con la app para que lo que ves coincida con lo medido acá).
 const CAL_MIN_PARTIDOS = 20;
 
 function devigar2(oddsA, oddsB) {
@@ -26,7 +30,6 @@ function pasaEV(probPct, cuota) {
   return (probPct / 100) * cuota > FILTRO_EV;
 }
 
-// ============ DOM ============
 const fileInput = document.getElementById('historial-file');
 const fileInfo = document.getElementById('file-info');
 const runBtn = document.getElementById('run-btn');
@@ -75,7 +78,6 @@ function log(msg) {
   logDiv.scrollTop = logDiv.scrollHeight;
 }
 
-// ============ MÉTRICAS POR MERCADO ============
 class MarketStats {
   constructor(name) {
     this.name = name;
@@ -104,9 +106,6 @@ class MarketStats {
   }
 }
 
-// ============ CALIBRACIÓN ============
-// Delegamos en AutoCalibrate.ejecutar para que se use EXACTAMENTE la misma
-// calibración que va a quedar guardada en localStorage y que va a usar la app.
 async function calibrarLiga(leagueKey, partidos) {
   partidos = [...partidos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
@@ -196,7 +195,6 @@ function renderCalibracion(resultado) {
     </div>`;
 }
 
-// ============ RECOMENDACIONES ============
 function calcularRecomendacion(p, pred, resultProbsFinal, leagueKey) {
   const U = getUmbrales(leagueKey);
   const rec = {
@@ -206,6 +204,8 @@ function calcularRecomendacion(p, pred, resultProbsFinal, leagueKey) {
     real: p.goles_local != null ? `${p.goles_local}-${p.goles_visitante}` : null,
     resultado: null,
     totalGoles: null,
+    cornersLocal: p.corners_local ?? null,
+    cornersVisit: p.corners_visitante ?? null,
     picks: [],
     sin1x2: null,
     sinEV: [],
@@ -273,8 +273,7 @@ function calcularRecomendacion(p, pred, resultProbsFinal, leagueKey) {
     }
   }
 
-  // Córners TOTALES (Over 7.5 / 8.5 / 9.5).
-  // Los córners por equipo (local Over 3.5 y visitante Over 3.5) se quitaron.
+  // Córners TOTALES solamente. Se quitaron los córners por equipo.
   if (pred.cornerProbs) {
     const lineasC = [
       { code: 'c_over95', label: 'Over 9.5 córners', prob: pred.cornerProbs.over9, umbral: 9.5 },
@@ -361,14 +360,12 @@ function colorPick(v) {
   if (v >= 60) return 'var(--yellow)';
   return 'var(--red)';
 }
-
 function colorROI(roi) {
   if (roi == null) return 'var(--chalk-dim)';
   if (roi > 2) return 'var(--green)';
   if (roi >= -2) return 'var(--yellow)';
   return 'var(--red)';
 }
-
 function valorEV(probPct, casaOdds) {
   if (!probPct || !casaOdds) return null;
   return (probPct / 100) * casaOdds;
@@ -400,7 +397,7 @@ function renderPicks(recs, stats, leagueKey) {
     <div class="card" style="border:2px solid var(--green);">
       <h3>📊 Resumen de picks <small>(${stats.partidosConPick}/${recs.length} partidos con al menos un pick)</small></h3>
       <div class="compare-row compare-head"><span>Mercado</span><span>Picks</span><span>Acierto</span><span>ROI (profit)</span></div>
-      ${resumen}
+      ${resumen || '<div class="compare-row"><span>Sin picks con resultado real.</span></div>'}
       <p style="margin:10px 0 0; font-size:0.78rem; color:var(--chalk-dim); line-height:1.5;">
         <strong>Reglas para ${leagueKey}:</strong>
         1X2 ≥ ${U.umbral1x2}% ·
@@ -422,7 +419,7 @@ function renderPicks(recs, stats, leagueKey) {
       const marca = pick.tieneReal ? (pick.hit ? '✅' : '❌') : '⏳';
       const realDetalle = pick.tieneReal
         ? (pick.mercado === 'Córners totales'
-            ? `${(p.cornersLocal ?? 0) + (p.cornersVisit ?? 0)} córners`
+            ? `${(r.cornersLocal ?? 0) + (r.cornersVisit ?? 0)} córners`
             : `${r.totalGoles} goles`)
         : '';
       const ev = valorEV(pick.prob, pick.casaOdds);
@@ -450,13 +447,13 @@ function renderPicks(recs, stats, leagueKey) {
     <h2 style="font-family:'Anton',sans-serif;font-size:1.15rem;letter-spacing:0.02em;color:var(--chalk);margin:20px 0 10px;">
       Detalle por partido (${ordenados.length}${ordenados.length > 50 ? ', mostrando 50' : ''})
     </h2>
-    ${cards}`;
+    ${cards || '<div class="card"><p style="color:var(--chalk-dim);">Sin partidos con picks.</p></div>'}`;
 }
 
-// ============ RUN ============
 runBtn.addEventListener('click', async () => {
   if (!historial) return;
   runBtn.disabled = true;
+  runBtn.textContent = 'Calculando...';
   logDiv.textContent = '';
   resultsSection.style.display = 'none';
   exportSection.style.display = 'none';
@@ -571,7 +568,8 @@ runBtn.addEventListener('click', async () => {
       app: {
         local: resultProbsFinal.local, empate: resultProbsFinal.empate, visitante: resultProbsFinal.visitante,
         over15: pred.over15, over25: pred.over25, over35: pred.over35, btts: pred.btts,
-        corners_over75: pred.cornerProbs?.over7 ?? null, corners_over85: pred.cornerProbs?.over8 ?? null,
+        corners_over75: pred.cornerProbs?.over7 ?? null,
+        corners_over85: pred.cornerProbs?.over8 ?? null,
         corners_over95: pred.cornerProbs?.over9 ?? null,
       },
       real: {
@@ -605,18 +603,38 @@ runBtn.addEventListener('click', async () => {
   const modeloVsMercadoResumen = {};
   for (const [k, m] of Object.entries(modeloVsMercado)) modeloVsMercadoResumen[k] = m.summary();
 
-  renderPicks(todasLasRecs, picksStats.summary(), leagueKey);
-  renderResults(
-    Object.entries(markets).map(([k, m]) => ({ key: k, ...m.summary() })),
-    mercadoResumen,
-    modeloVsMercadoResumen
-  );
+  // MEJORA: try/catch para que si un render falla, el otro igual corra.
+  try {
+    renderPicks(todasLasRecs, picksStats.summary(), leagueKey);
+  } catch (err) {
+    console.error('❌ Error en renderPicks:', err);
+    picksSection.style.display = 'block';
+    picksContent.innerHTML = `<div class="card"><h3>⚠️ Error al renderizar picks</h3><p style="color:var(--red);font-size:0.8rem;">${err.message}</p></div>`;
+  }
 
-  exportSection.style.display = filasComparacion.length ? 'block' : 'none';
+  try {
+    renderResults(
+      Object.entries(markets).map(([k, m]) => ({ key: k, ...m.summary() })),
+      mercadoResumen,
+      modeloVsMercadoResumen
+    );
+  } catch (err) {
+    console.error('❌ Error en renderResults:', err);
+    resultsSection.style.display = 'block';
+    resultsContent.innerHTML = `<div class="card"><h3>⚠️ Error al renderizar resultados</h3><p style="color:var(--red);font-size:0.8rem;">${err.message}</p></div>`;
+  }
+
+  // MEJORA: forzar visibles TODAS las secciones al final. Así los botones
+  // de exportar y las tablas nunca desaparecen aunque algo haya fallado.
+  calibrationSection.style.display = 'block';
+  picksSection.style.display = 'block';
+  resultsSection.style.display = 'block';
+  exportSection.style.display = 'block';
+
   runBtn.disabled = false;
+  runBtn.textContent = 'Ejecutar backtest';
 });
 
-// ============ RENDER ============
 function vsBaseColor(m) {
   if (m == null) return 'var(--chalk-dim)';
   if (m >= 10) return 'var(--green)';
@@ -689,7 +707,6 @@ function renderResults(summaries, mercadoResumen = {}, modeloVsMercadoResumen = 
   resultsSection.style.display = 'block';
 }
 
-// ============ EXPORT CSV ============
 function exportarComparacionCSV(filas) {
   if (!filas.length) { alert('No hay partidos para exportar.'); return; }
   const headers = [
@@ -751,7 +768,6 @@ function exportarComparacionCSV(filas) {
 }
 exportBtn.addEventListener('click', () => exportarComparacionCSV(filasComparacion));
 
-// ==== EXPORTAR params.json ====
 const exportParamsBtn = document.getElementById('export-params-btn');
 if (exportParamsBtn) {
   exportParamsBtn.addEventListener('click', () => {
