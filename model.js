@@ -110,16 +110,32 @@ export function calcLambdas(goalsAvg, hRating, aRating, homeAdv) {
 }
 
 // ============ ML DE BZZOIRO ============
+// Normaliza cada campo POR SEPARADO. Antes se decidía si venían en fracción o
+// en porcentaje mirando la suma de resultProbs y esa decisión se aplicaba a
+// TODOS los campos, lo que rompía si la API devolvía, por ejemplo, el 1X2 en
+// porcentaje pero over/btts en fracción (o al revés).
 function normalizarML(ml) {
-  const rp = ml.resultProbs;
-  const suma = (rp.local || 0) + (rp.empate || 0) + (rp.visitante || 0);
-  const esFraccion = suma > 0 && suma <= 1.5; // 0.45/0.27/0.28 en vez de 45/27/28
-  const f = (v) => (typeof v === 'number' && Number.isFinite(v)) ? +(esFraccion ? v * 100 : v).toFixed(1) : v;
+  const rp = ml.resultProbs || {};
+
+  const toPct = (v) => {
+    if (typeof v !== 'number' || !Number.isFinite(v)) return null;
+    // 0..1.5 => fracción (0.45 -> 45). Cualquier otro valor => ya es porcentaje.
+    return v <= 1.5 ? +(v * 100).toFixed(1) : +v.toFixed(1);
+  };
+
   let conf = ml.confidence;
   if (typeof conf === 'number' && conf > 1) conf = conf / 100;
+
   return {
-    resultProbs: { local: f(rp.local), empate: f(rp.empate), visitante: f(rp.visitante) },
-    over15: f(ml.over15), over25: f(ml.over25), over35: f(ml.over35), btts: f(ml.btts),
+    resultProbs: {
+      local: toPct(rp.local),
+      empate: toPct(rp.empate),
+      visitante: toPct(rp.visitante),
+    },
+    over15: toPct(ml.over15),
+    over25: toPct(ml.over25),
+    over35: toPct(ml.over35),
+    btts: toPct(ml.btts),
     confidence: typeof conf === 'number' && Number.isFinite(conf) ? conf : null,
   };
 }
