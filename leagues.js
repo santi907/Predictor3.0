@@ -854,7 +854,9 @@ export const RATING_MIN = 0.45, RATING_MAX = 1.90;
 // Peso de los datos en vivo vs. el rating estático: w = jugados / (jugados + K).
 export const LIVE_PRIOR_GAMES = 6;
 // Partidos "virtuales" del promedio de goles estático al mezclar con el de la API.
-export const GOALS_AVG_PRIOR_MATCHES = 60;
+// Antes 60: con 200 partidos de historial pesaba 23% y arrastraba el promedio
+// hacia el estático. Con 20 pesa 9%, deja que el dato real domine.
+export const GOALS_AVG_PRIOR_MATCHES = 20;
 
 // Tope de peso del ML de Bzzoiro al mezclar con el modelo propio.
 export const ML_MAX_WEIGHT = 0.6;
@@ -862,13 +864,15 @@ export const ML_MAX_WEIGHT = 0.6;
 export const FILTRO_EV = 1.05;
 export const SHRINK_ALPHA = 0.15;
 
+// Umbrales por liga. En CPA/MLS/BSA se subió Córners de 60 a 75 porque con
+// 60 disparaba pick prácticamente en todos los partidos (199/200 en CPA).
 export const UMBRALES_POR_LIGA = {
   PL:  { umbral1x2: 50, umbralGoles: 75, umbralCorners: 65, umbralBtss: 70, cornersVisitante: false },
   BSB: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 60, umbralBtss: 60, cornersVisitante: true },
   ARG: { umbral1x2: 55, umbralGoles: 65, umbralCorners: 60, umbralBtss: 60, cornersVisitante: false },
-  MLS: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 65, umbralBtss: 65, cornersVisitante: false },
-  BSA: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 65, umbralBtss: 65, cornersVisitante: true },
-  CPA: { umbral1x2: 55, umbralGoles: 65, umbralCorners: 60, umbralBtss: 60, cornersVisitante: false },
+  MLS: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 75, umbralBtss: 65, cornersVisitante: false },
+  BSA: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 75, umbralBtss: 65, cornersVisitante: true },
+  CPA: { umbral1x2: 55, umbralGoles: 65, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
   MXL: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 65, umbralBtss: 65, cornersVisitante: true },
   DEFAULT: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 60, umbralBtss: 60, cornersVisitante: true },
 };
