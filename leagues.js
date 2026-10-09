@@ -2,30 +2,23 @@
 // CONFIGURACIÓN / DATOS DE LIGAS
 // ----------------------------------------------------------------------------
 // Este archivo NO tiene lógica de cálculo. Es solo el "catálogo" de ligas,
-// equipos y parámetros del modelo. Si quieres:
-//   - Agregar/quitar una liga o equipo         -> edita LIGAS / TEAM_STRENGTH_DB aquí.
-//   - Ajustar la fórmula de goles/corners/BTTS  -> ve a stats.js (NO aquí).
+// equipos y parámetros del modelo.
 // ============================================================================
 
 export const LIGAS = {
-  // 🟢 VERDE = apostar (stake 1%) | 🟡 AMARILLO = stake bajo | 🔴 ROJO = no apostar
-
-  // === VERDES ===
   "MLS": { "name": "🇺🇸 MLS (EEUU)", "goalsAvg": 3.00, "cornAvg": 9.9, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "green", "mercados": ["1X2", "Over 3.5", "BTTS"], "nota": "La mejor liga. Prioridad 1X2 y Over 3.5." } },
   "CPA": { "name": "🇨🇴 Categoría Primera A", "goalsAvg": 2.35, "cornAvg": 9.5, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["BTTS", "Over 1.5", "Over 2.5"], "nota": "BTTS es el mercado estrella." } },
   "ELC": { "name": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship (Inglaterra)", "goalsAvg": 2.65, "cornAvg": 10.5, "cornR": 20, "markets": { "goles": false, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["BTTS"], "nota": "Solo BTTS. Los demás mercados pierden." } },
-  "DED": { "name": "🇳🇱 Eredivisie (Países bajos)", "goalsAvg": 3.10, "cornAvg": 10.1, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["BTTS", "1X2", "Over 2.5"], "nota": "BTTS con muestra grande (43 picks)." } },
-  "BSA": { "name": "🇧🇷 Brasileirão A", "goalsAvg": 2.45, "cornAvg": 10.3, "cornR": 19, "markets": { "goles": false, "btts": false, "corn": true }, "betting": { "status": "green", "mercados": ["Over 1.5", "1X2"], "nota": "Over 1.5 es el mercado más sólido (75 picks)." } },
+  "DED": { "name": "🇳🇱 Eredivisie (Países bajos)", "goalsAvg": 3.10, "cornAvg": 10.1, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["BTTS", "1X2", "Over 2.5"], "nota": "BTTS con muestra grande." } },
+  "BSA": { "name": "🇧🇷 Brasileirão A", "goalsAvg": 2.45, "cornAvg": 10.3, "cornR": 19, "markets": { "goles": false, "btts": false, "corn": true }, "betting": { "status": "green", "mercados": ["Over 1.5", "1X2"], "nota": "Over 1.5 es el mercado más sólido." } },
 
-  // === AMARILLAS ===
   "PPT": { "name": "🇵🇹 Liga Portugal", "goalsAvg": 2.60, "cornAvg": 9.4, "cornR": 17, "markets": { "goles": false, "btts": true, "corn": false }, "betting": { "status": "yellow", "mercados": ["Over 3.5", "BTTS", "Over 2.5"], "nota": "⚠️ ROI alto pero calibración mala." } },
   "FL1": { "name": "🇫🇷 Ligue 1", "goalsAvg": 2.70, "cornAvg": 9.4, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["Over 1.5"], "nota": "⚠️ Solo 16 picks." } },
-  "MXL": { "name": "🇲🇽 Liga MX", "goalsAvg": 2.70, "cornAvg": 9.6, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["Over 1.5"], "nota": "⚠️ Solo 5 picks. Necesita más datos." } },
+  "MXL": { "name": "🇲🇽 Liga MX", "goalsAvg": 2.70, "cornAvg": 9.6, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["Over 1.5"], "nota": "⚠️ Solo 5 picks." } },
   "ELITE": { "name": "🇳🇴 Eliteserien (Noruega)", "goalsAvg": 2.94, "cornAvg": 9.6, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "yellow", "mercados": ["1X2"], "nota": "⚠️ rho positivo, ROI bajo." } },
   "ALLSV": { "name": "🇸🇪 Allsvenskan (Suecia)", "goalsAvg": 2.83, "cornAvg": 9.4, "cornR": 16, "markets": { "goles": false, "btts": true, "corn": false }, "betting": { "status": "yellow", "mercados": ["1X2"], "nota": "⚠️ ROI marginal." } },
   "JPL": { "name": "🇧🇪 Jupiler Pro League (Bélgica)", "goalsAvg": 2.90, "cornAvg": 9.8, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["Over 2.5"], "nota": "⚠️ rho positivo, dudosa." } },
 
-  // === ROJAS ===
   "PL": { "name": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League", "goalsAvg": 2.85, "cornAvg": 10.5, "cornR": 20, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
   "BL1": { "name": "🇩🇪 Bundesliga", "goalsAvg": 3.00, "cornAvg": 10.0, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
   "SA": { "name": "🇮🇹 Serie A", "goalsAvg": 2.65, "cornAvg": 10.2, "cornR": 19, "markets": { "goles": false, "btts": false, "corn": true }, "betting": { "status": "red" } },
@@ -43,7 +36,7 @@ export const LIGAS = {
   "NPLQLD": { "name": "🇦🇺 NPL Queensland (Australia)", "goalsAvg": 2.95, "cornAvg": 9.3, "cornR": 16, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "red" } },
   "SUI1": { "name": "🇨🇭 Super League (Suiza)", "goalsAvg": 3.34, "cornAvg": 10.0, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
   "ABL": { "name": "🇦🇹 Austrian Bundesliga (Austria)", "goalsAvg": 2.85, "cornAvg": 9.8, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "ARG": { "name": "🇦🇷 Liga Profesional de Fútbol ", "goalsAvg": 2.15, "cornAvg": 9.1, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } }
+  "ARG": { "name": "🇦🇷 Liga Profesional de Fútbol", "goalsAvg": 2.15, "cornAvg": 9.1, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } }
 };
 
 export const TEAM_STRENGTH_DB = {
@@ -579,7 +572,7 @@ export const TEAM_STRENGTH_DB = {
     "Sporting Gijón": { "atk": 1.03, "def": 0.98 },
     "UD Las Palmas": { "atk": 0.99, "def": 1.09 }
   },
-  "CDR": { 
+  "CDR": {
     "AE Prat": { "atk": 1.05, "def": 1.10 },
     "Atlético Calatayud": { "atk": 0.92, "def": 1.25 },
     "Atletico Melilla CF": { "atk": 0.75, "def": 1.65 },
@@ -590,7 +583,7 @@ export const TEAM_STRENGTH_DB = {
     "CD Baztan": { "atk": 0.85, "def": 1.35 },
     "CD San José de soria": { "atk": 0.82, "def": 1.38 },
     "CD Tedeon": { "atk": 0.80, "def": 1.45 },
-    "CF Sant Rafel": { "atk": 0.90, "def": 1.28 },                                                   
+    "CF Sant Rafel": { "atk": 0.90, "def": 1.28 },
     "CP Talayuela": { "atk": 0.78, "def": 1.50 },
     "Noja SD": { "atk": 0.88, "def": 1.32 },
     "Ribadesella CF": { "atk": 0.85, "def": 1.35 },
@@ -599,7 +592,7 @@ export const TEAM_STRENGTH_DB = {
     "UB Lebrijana": { "atk": 0.95, "def": 1.20 },
     "UD Maracena": { "atk": 0.88, "def": 1.30 },
     "UD Pinatar": { "atk": 0.85, "def": 1.35 },
-    "UE Tavernes": { "atk": 0.92, "def": 1.25 } 
+    "UE Tavernes": { "atk": 0.92, "def": 1.25 }
   },
   "NPLQLD": {
     "Brisbane City": { "atk": 1.02, "def": 1.04 },
@@ -678,7 +671,7 @@ export const TEAM_STRENGTH_DB = {
     "TSV Hartberg": { "atk": 1.00, "def": 1.20 },
     "Wolfsberger AC": { "atk": 1.08, "def": 1.12 },
     "WSG Tirol": { "atk": 0.92, "def": 1.30 }
-   }, 
+   },
   "ARG": {
      "Aldosivi": { "atk": 0.85, "def": 1.30 },
      "Argentinos Juniors": { "atk": 1.05, "def": 0.95 },
@@ -736,67 +729,21 @@ export const TEAM_STRENGTH_DB = {
 };
 
 export const HOME_ADVANTAGE = {
-  "PL": 1.078,
-  "BL1": 1.185,
-  "SA": 1.087,
-  "PD": 1.419,
-  "FL1": 1.203,
-  "DED": 1.113,
-  "BSA": 1.317,
-  "ELC": 1.142,
-  "JPL": 1.085,
-  "MXL": 1.281,
-  "LIB": 1.25,
-  "MLS": 1.303,
-  "BSB": 1.435,
-  "PPT": 1.373,
-  "EKS": 1.229,
-  "SPL": 1.165,
-  "CDR": 1.2,
-  "SPFL": 1.25,
-  "SD2": 1.25,
-  "UCL": 1.2,
-  "UEL": 1.2,
-  "COPPAITALIA": 1.2,
-  "ABL": 1.439,
-  "ARG": 1.196,
-  "CPA": 1.263,
-  "ELITE": 1.285,
-  "ALLSV": 1.093,
-  "NPLQLD": 1.25,
-  "SUI1": 1.05
+  "PL": 1.078, "BL1": 1.185, "SA": 1.087, "PD": 1.419, "FL1": 1.203,
+  "DED": 1.113, "BSA": 1.317, "ELC": 1.142, "JPL": 1.085, "MXL": 1.281,
+  "LIB": 1.25, "MLS": 1.303, "BSB": 1.435, "PPT": 1.373, "EKS": 1.229,
+  "SPL": 1.165, "CDR": 1.2, "SPFL": 1.25, "SD2": 1.25, "UCL": 1.2,
+  "UEL": 1.2, "COPPAITALIA": 1.2, "ABL": 1.439, "ARG": 1.196, "CPA": 1.263,
+  "ELITE": 1.285, "ALLSV": 1.093, "NPLQLD": 1.25, "SUI1": 1.05
 };
 
 export const DIXON_COLES_RHO = {
-  "PL": -0.065,
-  "BL1": -0.085,
-  "SA": -0.130,
-  "PD": -0.098,
-  "FL1": -0.105,
-  "DED": -0.072,
-  "BSA": -0.090,
-  "ELC": -0.078,
-  "JPL": -0.082,
-  "MXL": -0.095,
-  "LIB": -0.088,
-  "MLS": -0.070,
-  "BSB": -0.092,
-  "PPT": -0.080,
-  "EKS": -0.085,
-  "SPL": -0.075,
-  "CDR": -0.050,
-  "SPFL": -0.080,
-  "SD2": -0.085,
-  "UCL": -0.070,
-  "UEL": -0.078,
-  "COPPAITALIA": -0.090,
-  "ABL": -0.058,
-  "ARG": -0.070,
-  "CPA": -0.095,
-  "ELITE": -0.080,
-  "ALLSV": -0.080,
-  "NPLQLD": -0.100,
-  "SUI1": -0.090,
+  "PL": -0.065, "BL1": -0.085, "SA": -0.130, "PD": -0.098, "FL1": -0.105,
+  "DED": -0.072, "BSA": -0.090, "ELC": -0.078, "JPL": -0.082, "MXL": -0.095,
+  "LIB": -0.088, "MLS": -0.070, "BSB": -0.092, "PPT": -0.080, "EKS": -0.085,
+  "SPL": -0.075, "CDR": -0.050, "SPFL": -0.080, "SD2": -0.085, "UCL": -0.070,
+  "UEL": -0.078, "COPPAITALIA": -0.090, "ABL": -0.058, "ARG": -0.070, "CPA": -0.095,
+  "ELITE": -0.080, "ALLSV": -0.080, "NPLQLD": -0.100, "SUI1": -0.090,
   "default": -0.100
 };
 
@@ -833,39 +780,30 @@ export const BZZOIRO_COUNTRY = {
 };
 
 // ============================================================================
-// CONFIGURACIÓN COMPARTIDA (app.js, picks.js, backtest.js, calibrate.js)
+// CONFIGURACIÓN COMPARTIDA
 // ============================================================================
-// Versión del modelo. Si cambia, los parámetros guardados en localStorage con
-// otra versión se ignoran (fueron calibrados con otra fórmula de lambdas).
 export const MODEL_VERSION = 2;
 
-// HOME_ADVANTAGE = cociente goles local / goles visitante esperado.
-// En el modelo: lambdaLocal = base * sqrt(HA), lambdaVisit = base / sqrt(HA).
 export const DEFAULT_HOME_ADV = 1.25;
 export const DEFAULT_RHO = -0.10;
 export const HA_MIN = 1.05, HA_MAX = 1.45;
 export const RHO_MIN = -0.20, RHO_MAX = 0.05;
 
-// Los ratings estáticos se normalizan (media 1.0) y se acercan a 1.0 en este factor.
-// 1.0 = sin encogimiento. 0.85 = se achica 15% la distancia a la media.
 export const RATING_SHRINK = 0.85;
 export const RATING_MIN = 0.45, RATING_MAX = 1.90;
 
-// Peso de los datos en vivo vs. el rating estático: w = jugados / (jugados + K).
 export const LIVE_PRIOR_GAMES = 6;
-// Partidos "virtuales" del promedio de goles estático al mezclar con el de la API.
-// Antes 60: con 200 partidos de historial pesaba 23% y arrastraba el promedio
-// hacia el estático. Con 20 pesa 9%, deja que el dato real domine.
+// MEJORA: antes 60, ahora 20. Con 200 partidos de historial, 60 pesaba 23%
+// del total y arrastraba el avg hacia el estático. 20 pesa 9%.
 export const GOALS_AVG_PRIOR_MATCHES = 20;
 
-// Tope de peso del ML de Bzzoiro al mezclar con el modelo propio.
 export const ML_MAX_WEIGHT = 0.6;
 
 export const FILTRO_EV = 1.05;
 export const SHRINK_ALPHA = 0.15;
 
-// Umbrales por liga. En CPA/MLS/BSA se subió Córners de 60 a 75 porque con
-// 60 disparaba pick prácticamente en todos los partidos (199/200 en CPA).
+// MEJORA: en CPA/MLS/BSA se subió Córners de 60 a 75 porque con 60 disparaba
+// pick en casi todos los partidos (199/200 en CPA).
 export const UMBRALES_POR_LIGA = {
   PL:  { umbral1x2: 50, umbralGoles: 75, umbralCorners: 65, umbralBtss: 70, cornersVisitante: false },
   BSB: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 60, umbralBtss: 60, cornersVisitante: true },
