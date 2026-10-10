@@ -1,511 +1,602 @@
-// ============================================================================
-// CONFIGURACIÓN / DATOS DE LIGAS
-// ============================================================================
+// backtest.js
+// MEJORAS:
+// - Una sola calibración (AutoCalibrate.ejecutar).
+// - calcularRecomendacion respeta betting.status y betting.mercados.
+// - Sin córners por equipo (solo totales, umbral 75).
+// - try/catch en renderPicks y renderResults.
+// - Todas las secciones visibles al final.
 
-export const LIGAS = {
-  // === VERDES ===
-  "MLS": { "name": "🇺🇸 MLS (EEUU)", "goalsAvg": 3.00, "cornAvg": 9.9, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "green", "mercados": ["1X2", "BTTS"], "nota": "Local +1.7% vs cuota. Stake 1%." } },
-  "CPA": { "name": "🇨🇴 Categoría Primera A", "goalsAvg": 2.35, "cornAvg": 9.5, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["1X2", "Over 1.5", "Over 2.5", "Over 3.5", "BTTS"], "nota": "Visitante +5.9% vs cuota. 4 mercados con edge. Stake 1%." } },
-  "MXL": { "name": "🇲🇽 Liga MX", "goalsAvg": 2.70, "cornAvg": 9.6, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["1X2", "Over 1.5"], "nota": "Over 1.5 +2.5%, Visitante +2.4% (muestra chica). Stake 0.5%." } },
-  "FL1": { "name": "🇫🇷 Ligue 1", "goalsAvg": 2.70, "cornAvg": 9.4, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["Over 1.5", "Over 3.5"], "nota": "Over 1.5 +3.7% vs cuota (10 picks). Stake 2%." } },
-  "BSA": { "name": "🇧🇷 Brasileirão A", "goalsAvg": 2.45, "cornAvg": 10.3, "cornR": 19, "markets": { "goles": false, "btts": false, "corn": true }, "betting": { "status": "green", "mercados": ["Over 1.5", "Over 3.5"], "nota": "Over 1.5 +1.1% (17 picks), Over 3.5 +2.6%. Stake 1%." } },
+import { LIGAS, HOME_ADVANTAGE, DIXON_COLES_RHO, FILTRO_EV, SHRINK_ALPHA, getUmbrales } from './leagues.js';
+import { simulateMatch } from './model.js';
+import { calcularTasasBase, shrinkHaciaBase } from './calibrate.js';
+import { AutoCalibrate } from './auto-calibrate.js';
 
-  // === AMARILLAS ===
-  "SUI1": { "name": "🇨🇭 Super League (Suiza)", "goalsAvg": 3.34, "cornAvg": 10.0, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["Over 1.5"], "nota": "⚠️ modelo pierde a la cuota en todos los mercados (-6% a -20%). No apostar." } },
-  "PPT": { "name": "🇵🇹 Liga Portugal", "goalsAvg": 2.60, "cornAvg": 9.4, "cornR": 17, "markets": { "goles": false, "btts": true, "corn": false }, "betting": { "status": "yellow", "mercados": ["Over 2.5", "BTTS"], "nota": "⚠️ err 11.7%. Solo Over 2.5 y BTTS." } },
-  "BSB": { "name": "🇧🇷 Brasileirão B", "goalsAvg": 2.30, "cornAvg": 9.2, "cornR": 16, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["1X2"], "nota": "⚠️ 1X2 +10% ROI en 38 picks, sin confirmar." } },
-  "JPL": { "name": "🇧🇪 Jupiler Pro League (Bélgica)", "goalsAvg": 2.90, "cornAvg": 9.8, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["Over 2.5"], "nota": "⚠️ err 9.6%, mercados con cuota negativos." } },
-  "ELITE": { "name": "🇳🇴 Eliteserien (Noruega)", "goalsAvg": 2.94, "cornAvg": 9.6, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "yellow", "mercados": ["1X2"], "nota": "⚠️ sin calibrar." } },
-  "ALLSV": { "name": "🇸🇪 Allsvenskan (Suecia)", "goalsAvg": 2.83, "cornAvg": 9.4, "cornR": 16, "markets": { "goles": false, "btts": true, "corn": false }, "betting": { "status": "yellow", "mercados": ["1X2"], "nota": "⚠️ sin calibrar." } },
-  "DED": { "name": "🇳🇱 Eredivisie (Países bajos)", "goalsAvg": 3.10, "cornAvg": 10.1, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["BTTS"], "nota": "⚠️ sin calibrar." } },
+const CAL_MIN_PARTIDOS = 20;
 
-  // === ROJAS ===
-  "PL": { "name": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League", "goalsAvg": 2.85, "cornAvg": 10.5, "cornR": 20, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "BL1": { "name": "🇩🇪 Bundesliga", "goalsAvg": 3.00, "cornAvg": 10.0, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "SA": { "name": "🇮🇹 Serie A", "goalsAvg": 2.65, "cornAvg": 10.2, "cornR": 19, "markets": { "goles": false, "btts": false, "corn": true }, "betting": { "status": "red" } },
-  "PD": { "name": "🇪🇸 La Liga", "goalsAvg": 2.55, "cornAvg": 9.5, "cornR": 17, "markets": { "goles": false, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "ELC": { "name": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship (Inglaterra)", "goalsAvg": 2.65, "cornAvg": 10.5, "cornR": 20, "markets": { "goles": false, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "LIB": { "name": "🏆 Libertadores", "goalsAvg": 2.50, "cornAvg": 9.7, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "EKS": { "name": "🇵🇱 Ekstraklasa (Polonia)", "goalsAvg": 2.55, "cornAvg": 9.5, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "SPL": { "name": "🇸🇦 Saudi Pro League", "goalsAvg": 2.90, "cornAvg": 9.6, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "red" } },
-  "SPFL": { "name": "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scottish Premiership(Escocia)", "goalsAvg": 2.75, "cornAvg": 10.2, "cornR": 19, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "red" } },
-  "COPPAITALIA": { "name": "🏆 Coppa Italia", "goalsAvg": 2.50, "cornAvg": 9.4, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "UCL": { "name": "⭐ Champions League", "goalsAvg": 2.75, "cornAvg": 10.0, "cornR": 18, "markets": { "goles": false, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "UEL": { "name": "🟠 Europa League", "goalsAvg": 2.65, "cornAvg": 9.7, "cornR": 17, "markets": { "goles": false, "btts": true, "corn": false }, "betting": { "status": "red" } },
-  "SD2": { "name": "🇪🇸 Segunda División", "goalsAvg": 2.45, "cornAvg": 9.4, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "CDR": { "name": "🇪🇸 Copa del Rey", "goalsAvg": 2.75, "cornAvg": 9.2, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "NPLQLD": { "name": "🇦🇺 NPL Queensland (Australia)", "goalsAvg": 2.95, "cornAvg": 9.3, "cornR": 16, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "red" } },
-  "ABL": { "name": "🇦🇹 Austrian Bundesliga (Austria)", "goalsAvg": 2.85, "cornAvg": 9.8, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } },
-  "ARG": { "name": "🇦🇷 Liga Profesional de Fútbol", "goalsAvg": 2.15, "cornAvg": 9.1, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "red" } }
-};
+function devigar2(oddsA, oddsB) {
+  if (!oddsA || !oddsB) return null;
+  const pA = 1 / oddsA, pB = 1 / oddsB;
+  return (pA / (pA + pB)) * 100;
+}
+function devigar3(oddsA, oddsB, oddsC) {
+  if (!oddsA || !oddsB || !oddsC) return null;
+  const pA = 1 / oddsA, pB = 1 / oddsB, pC = 1 / oddsC;
+  const s = pA + pB + pC;
+  return [(pA / s) * 100, (pB / s) * 100, (pC / s) * 100];
+}
+function pasaEV(probPct, cuota) {
+  if (!cuota || !probPct) return false;
+  return (probPct / 100) * cuota > FILTRO_EV;
+}
 
-export const TEAM_STRENGTH_DB = {
-  "PL": {
-    "Arsenal": { "atk": 1.32, "def": 0.88 }, "Aston Villa": { "atk": 1.10, "def": 0.96 },
-    "Bournemouth": { "atk": 0.96, "def": 1.06 }, "Brentford": { "atk": 1.06, "def": 0.99 },
-    "Brighton & Hove Albion": { "atk": 1.08, "def": 0.98 }, "Chelsea": { "atk": 1.18, "def": 0.89 },
-    "Coventry City": { "atk": 0.80, "def": 1.18 }, "Crystal Palace": { "atk": 0.96, "def": 1.06 },
-    "Everton": { "atk": 0.94, "def": 1.08 }, "Fulham": { "atk": 1.04, "def": 1.02 },
-    "Hull City": { "atk": 0.78, "def": 1.22 }, "Ipswich Town": { "atk": 0.87, "def": 1.13 },
-    "Leeds United": { "atk": 0.90, "def": 1.11 }, "Liverpool FC": { "atk": 1.28, "def": 0.85 },
-    "Manchester City": { "atk": 1.35, "def": 0.82 }, "Manchester United": { "atk": 1.15, "def": 0.92 },
-    "Newcastle United": { "atk": 1.12, "def": 0.95 }, "Nottingham Forest": { "atk": 0.89, "def": 1.12 },
-    "Sunderland": { "atk": 0.92, "def": 1.10 }, "Tottenham Hotspur": { "atk": 1.22, "def": 0.91 }
-  },
-  "BL1": {
-    "1. FC Köln": { "atk": 0.85, "def": 1.16 }, "1. FC Union Berlin": { "atk": 0.91, "def": 1.12 },
-    "1. FSV Mainz 05": { "atk": 0.94, "def": 1.10 }, "Bayer 04 Leverkusen": { "atk": 1.15, "def": 0.96 },
-    "Borussia Dortmund": { "atk": 1.26, "def": 0.88 }, "Borussia M'gladbach": { "atk": 0.89, "def": 1.14 },
-    "Eintracht Frankfurt": { "atk": 1.02, "def": 1.04 }, "FC Augsburg": { "atk": 0.96, "def": 1.08 },
-    "FC Bayern München": { "atk": 1.38, "def": 0.80 }, "FC Schalke 04": { "atk": 0.80, "def": 1.22 },
-    "Hamburger SV": { "atk": 0.87, "def": 1.15 }, "RB Leipzig": { "atk": 1.20, "def": 0.92 },
-    "SC Freiburg": { "atk": 1.05, "def": 1.02 }, "SC Paderborn 07": { "atk": 0.90, "def": 1.10 },
-    "SV 07 Elversberg": { "atk": 0.82, "def": 1.18 }, "SV Werder Bremen": { "atk": 0.83, "def": 1.17 },
-    "TSG Hoffenheim": { "atk": 1.08, "def": 1.00 }, "VfB Stuttgart": { "atk": 1.18, "def": 0.94 }
-  },
-  "SA": {
-    "AC Milan": { "atk": 1.28, "def": 0.88 }, "AS Roma": { "atk": 1.15, "def": 0.94 },
-    "Atalanta": { "atk": 1.10, "def": 0.98 }, "Bologna": { "atk": 0.97, "def": 1.07 },
-    "Cagliari": { "atk": 0.84, "def": 1.15 }, "Como": { "atk": 0.90, "def": 1.12 },
-    "Fiorentina": { "atk": 1.12, "def": 0.96 }, "Frosinone": { "atk": 0.82, "def": 1.18 },
-    "Genoa": { "atk": 0.86, "def": 1.14 }, "Inter": { "atk": 1.32, "def": 0.86 },
-    "Juventus": { "atk": 1.22, "def": 0.90 }, "Lazio": { "atk": 1.18, "def": 0.92 },
-    "Lecce": { "atk": 0.82, "def": 1.16 }, "Monza": { "atk": 1.02, "def": 1.04 },
-    "Parma": { "atk": 0.80, "def": 1.17 }, "Sassuolo": { "atk": 0.78, "def": 1.18 },
-    "SSC Napoli": { "atk": 1.08, "def": 1.00 }, "Torino": { "atk": 0.99, "def": 1.06 },
-    "Udinese": { "atk": 0.92, "def": 1.11 }, "Venezia": { "atk": 0.76, "def": 1.20 }
-  },
-  "PD": {
-    "Athletic Club": { "atk": 1.08, "def": 0.99 }, "Atlético Madrid": { "atk": 1.20, "def": 0.92 },
-    "Celta Vigo": { "atk": 0.85, "def": 1.14 }, "Deportivo Alavés": { "atk": 0.83, "def": 1.15 },
-    "Deportivo de A Coruña": { "atk": 1.02, "def": 1.04 }, "Elche": { "atk": 0.80, "def": 1.18 },
-    "Espanyol": { "atk": 0.79, "def": 1.17 }, "FC Barcelona": { "atk": 1.32, "def": 0.86 },
-    "Getafe": { "atk": 0.94, "def": 1.08 }, "Levante UD": { "atk": 0.86, "def": 1.12 },
-    "Málaga CF": { "atk": 0.82, "def": 1.16 }, "Osasuna": { "atk": 1.02, "def": 1.03 },
-    "Rayo Vallecano": { "atk": 0.99, "def": 1.05 }, "Real Betis": { "atk": 1.05, "def": 1.01 },
-    "Real Madrid": { "atk": 1.35, "def": 0.84 }, "Real Racing Club": { "atk": 0.90, "def": 1.10 },
-    "Real Sociedad": { "atk": 1.15, "def": 0.95 }, "Sevilla": { "atk": 0.92, "def": 1.10 },
-    "Valencia": { "atk": 0.90, "def": 1.11 }, "Villarreal": { "atk": 1.12, "def": 0.97 }
-  },
-  "FL1": {
-    "Angers": { "atk": 0.80, "def": 1.18 }, "AS Monaco": { "atk": 1.22, "def": 0.90 },
-    "Auxerre": { "atk": 1.04, "def": 1.02 }, "Le Havre": { "atk": 0.83, "def": 1.16 },
-    "Le Mans": { "atk": 0.78, "def": 1.20 }, "Lille": { "atk": 1.15, "def": 0.94 },
-    "Lorient": { "atk": 0.77, "def": 1.19 }, "Nice": { "atk": 0.95, "def": 1.08 },
-    "Olympique de Marseille": { "atk": 1.12, "def": 0.96 }, "Olympique Lyonnais": { "atk": 1.18, "def": 0.92 },
-    "Paris FC": { "atk": 0.92, "def": 1.06 }, "Paris Saint-Germain": { "atk": 1.38, "def": 0.82 },
-    "RC Lens": { "atk": 1.08, "def": 0.99 }, "RC Strasbourg": { "atk": 0.92, "def": 1.10 },
-    "Stade Brestois": { "atk": 0.98, "def": 1.06 }, "Stade Rennais": { "atk": 1.01, "def": 1.04 },
-    "Toulouse": { "atk": 0.86, "def": 1.14 }, "Troyes": { "atk": 0.75, "def": 1.20 }
-  },
-  "DED": {
-    "ADO Den Haag": { "atk": 0.78, "def": 1.18 }, "AFC Ajax": { "atk": 1.28, "def": 0.88 },
-    "AZ Alkmaar": { "atk": 1.18, "def": 0.92 }, "Excelsior": { "atk": 0.85, "def": 1.14 },
-    "FC Groningen": { "atk": 0.96, "def": 1.08 }, "FC Twente": { "atk": 1.10, "def": 0.98 },
-    "FC Utrecht": { "atk": 1.12, "def": 0.96 }, "Feyenoord": { "atk": 1.22, "def": 0.90 },
-    "Fortuna Sittard": { "atk": 0.80, "def": 1.19 }, "Go Ahead Eagles": { "atk": 0.83, "def": 1.17 },
-    "NEC Nijmegen": { "atk": 0.92, "def": 1.11 }, "PEC Zwolle": { "atk": 1.02, "def": 1.04 },
-    "PSV Eindhoven": { "atk": 1.30, "def": 0.86 }, "SC Cambuur": { "atk": 0.76, "def": 1.20 },
-    "SC Heerenveen": { "atk": 1.06, "def": 1.01 }, "SC Telstar": { "atk": 0.72, "def": 1.22 },
-    "Sparta Rotterdam": { "atk": 0.75, "def": 1.21 }, "Willem II Tilburg": { "atk": 0.77, "def": 1.20 }
-  },
-  "BSA": {
-    "Athletico": { "atk": 1.02, "def": 0.98 }, "Atlético Mineiro": { "atk": 1.15, "def": 1.04 },
-    "Bahia": { "atk": 1.08, "def": 1.06 }, "Botafogo": { "atk": 1.25, "def": 0.88 },
-    "Chapecoense": { "atk": 0.88, "def": 1.12 }, "Corinthians": { "atk": 1.04, "def": 1.02 },
-    "Coritiba": { "atk": 0.94, "def": 1.05 }, "Cruzeiro": { "atk": 1.06, "def": 0.95 },
-    "Flamengo": { "atk": 1.30, "def": 0.92 }, "Fluminense": { "atk": 1.00, "def": 1.08 },
-    "Grêmio": { "atk": 1.05, "def": 1.10 }, "Internacional": { "atk": 1.12, "def": 0.90 },
-    "Mirassol": { "atk": 0.96, "def": 0.94 }, "Palmeiras": { "atk": 1.28, "def": 0.86 },
-    "Red Bull Bragantino": { "atk": 1.03, "def": 1.04 }, "Remo": { "atk": 0.85, "def": 1.08 },
-    "Santos": { "atk": 1.10, "def": 0.96 }, "São Paulo": { "atk": 1.14, "def": 0.93 },
-    "Vasco da Gama": { "atk": 1.01, "def": 1.14 }, "Vitória": { "atk": 0.97, "def": 1.15 }
-  },
-  "ELC": {
-    "Birmingham City": { "atk": 0.88, "def": 1.12 }, "Blackburn Rovers": { "atk": 0.93, "def": 1.13 },
-    "Bolton Wanderers": { "atk": 0.86, "def": 1.18 }, "Bristol City": { "atk": 0.90, "def": 1.15 },
-    "Burnley": { "atk": 1.12, "def": 0.94 }, "Cardiff City": { "atk": 0.87, "def": 1.17 },
-    "Charlton Athletic": { "atk": 0.84, "def": 1.19 }, "Derby County": { "atk": 0.66, "def": 1.30 },
-    "Lincoln City": { "atk": 0.80, "def": 1.22 }, "Middlesbrough": { "atk": 1.08, "def": 1.03 },
-    "Millwall": { "atk": 0.69, "def": 1.29 }, "Norwich City": { "atk": 1.20, "def": 0.92 },
-    "Portsmouth": { "atk": 0.72, "def": 1.27 }, "Preston North End": { "atk": 0.96, "def": 1.11 },
-    "Queens Park Rangers": { "atk": 0.83, "def": 1.21 }, "Sheffield United": { "atk": 1.18, "def": 0.94 },
-    "Southampton": { "atk": 0.85, "def": 1.14 }, "Stoke City": { "atk": 0.82, "def": 1.18 },
-    "Swansea City": { "atk": 0.84, "def": 1.19 }, "Watford": { "atk": 0.78, "def": 1.23 },
-    "West Bromwich Albion": { "atk": 1.02, "def": 1.07 }, "West Ham United": { "atk": 1.15, "def": 0.95 },
-    "Wolverhampton": { "atk": 0.95, "def": 1.09 }, "Wrexham": { "atk": 0.80, "def": 1.22 }
-  },
-  "MXL": {
-    "Atlante FC": { "atk": 0.84, "def": 1.14 }, "Atlas FC": { "atk": 0.98, "def": 1.06 },
-    "Atlético San Luis": { "atk": 0.90, "def": 1.11 }, "CD Guadalajara": { "atk": 1.08, "def": 0.99 },
-    "CD Toluca": { "atk": 1.20, "def": 0.93 }, "CF Monterrey": { "atk": 1.16, "def": 0.95 },
-    "CF Pachuca": { "atk": 1.04, "def": 1.02 }, "Club América": { "atk": 1.24, "def": 0.90 },
-    "Club León": { "atk": 1.02, "def": 1.03 }, "Club Necaxa": { "atk": 0.88, "def": 1.13 },
-    "Club Puebla": { "atk": 0.80, "def": 1.18 }, "Club Tijuana": { "atk": 0.96, "def": 1.08 },
-    "Cruz Azul": { "atk": 1.18, "def": 0.92 }, "FC Juárez": { "atk": 0.82, "def": 1.16 },
-    "Pumas UNAM": { "atk": 1.00, "def": 1.05 }, "Querétaro FC": { "atk": 0.78, "def": 1.20 },
-    "Santos Laguna": { "atk": 0.90, "def": 1.11 }, "Tigres UANL": { "atk": 1.22, "def": 0.91 }
-  },
-  "JPL": {
-    "Cercle Brugge": { "atk": 0.92, "def": 1.08 }, "Club Brugge KV": { "atk": 1.24, "def": 0.90 },
-    "KAA Gent": { "atk": 1.10, "def": 0.97 }, "KRC Genk": { "atk": 1.16, "def": 0.94 },
-    "KVC Westerlo": { "atk": 0.88, "def": 1.12 }, "KV Kortrijk": { "atk": 0.78, "def": 1.22 },
-    "KV Mechelen": { "atk": 0.98, "def": 1.04 }, "Lommel SK": { "atk": 0.80, "def": 1.18 },
-    "Oud-Heverlee Leuven": { "atk": 0.90, "def": 1.09 }, "RAAL La Louvière": { "atk": 0.76, "def": 1.24 },
-    "RC Sporting Charleroi": { "atk": 0.96, "def": 1.05 }, "Royal Antwerp FC": { "atk": 1.12, "def": 0.96 },
-    "Royale Union Saint-Gilloise": { "atk": 1.22, "def": 0.90 }, "RSC Anderlecht": { "atk": 1.18, "def": 0.92 },
-    "Sint-Truidense VV": { "atk": 0.84, "def": 1.14 }, "SK Beveren": { "atk": 0.82, "def": 1.16 },
-    "Standard Liège": { "atk": 1.00, "def": 1.06 }, "SV Zulte Waregem": { "atk": 0.86, "def": 1.12 }
-  },
-  "LIB": {
-    "Alianza Lima": { "atk": 0.94, "def": 1.11 }, "Argentinos Juniors": { "atk": 1.02, "def": 1.05 },
-    "Bahia": { "atk": 0.93, "def": 1.12 }, "Barcelona SC Guayaquil": { "atk": 0.62, "def": 1.35 },
-    "Boca Juniors": { "atk": 1.20, "def": 0.92 }, "Bolívar": { "atk": 0.66, "def": 1.32 },
-    "Botafogo": { "atk": 1.02, "def": 1.06 }, "CA Lanús": { "atk": 0.70, "def": 1.29 },
-    "Carabobo FC": { "atk": 0.74, "def": 1.29 }, "Cerro Porteño": { "atk": 0.78, "def": 1.23 },
-    "Club Always Ready": { "atk": 0.66, "def": 1.32 }, "Club Atlético Platense": { "atk": 0.72, "def": 1.30 },
-    "Club Sporting Cristal": { "atk": 0.98, "def": 1.08 }, "Coquimbo Unido": { "atk": 0.86, "def": 1.17 },
-    "Corinthians": { "atk": 1.16, "def": 0.96 }, "Cruzeiro": { "atk": 1.10, "def": 0.99 },
-    "CS 2 de Mayo": { "atk": 0.74, "def": 1.28 }, "Cusco FC": { "atk": 0.88, "def": 1.13 },
-    "Deportes Tolima": { "atk": 0.92, "def": 1.10 }, "Deportivo La Guaira": { "atk": 0.76, "def": 1.20 },
-    "Deportivo Táchira": { "atk": 0.90, "def": 1.12 }, "Estudiantes de La Plata": { "atk": 1.10, "def": 0.99 },
-    "Flamengo": { "atk": 1.26, "def": 0.88 }, "Fluminense": { "atk": 1.06, "def": 1.02 },
-    "Guaraní": { "atk": 0.80, "def": 1.22 }, "Huachipato": { "atk": 0.84, "def": 1.18 },
-    "Independiente del Valle": { "atk": 1.00, "def": 1.04 }, "Independiente Medellín": { "atk": 0.96, "def": 1.07 },
-    "Independiente Rivadavia": { "atk": 0.78, "def": 1.24 }, "Independiente Santa Fe": { "atk": 0.94, "def": 1.09 },
-    "Junior Barranquilla": { "atk": 1.00, "def": 1.04 }, "Juventud de Las Piedras": { "atk": 0.70, "def": 1.28 },
-    "LDU": { "atk": 0.98, "def": 1.06 }, "Libertad": { "atk": 0.74, "def": 1.26 },
-    "Liverpool UY": { "atk": 0.76, "def": 1.24 }, "Mirassol": { "atk": 0.72, "def": 1.25 },
-    "Nacional": { "atk": 0.98, "def": 1.05 }, "Nacional Potosí": { "atk": 0.68, "def": 1.31 },
-    "O'Higgins": { "atk": 0.82, "def": 1.18 }, "Palmeiras": { "atk": 1.24, "def": 0.90 },
-    "Peñarol": { "atk": 1.14, "def": 0.96 }, "Rosario Central": { "atk": 1.00, "def": 1.04 },
-    "The Strongest": { "atk": 0.68, "def": 1.30 }, "Universidad Católica": { "atk": 0.86, "def": 1.15 },
-    "Universidad Católica del Ecuador": { "atk": 0.88, "def": 1.13 }, "Universidad Central": { "atk": 0.72, "def": 1.27 },
-    "Universitario de Deportes": { "atk": 0.94, "def": 1.09 }
-  },
-  "MLS": {
-    "Atlanta United": { "atk": 0.88, "def": 1.12 }, "Austin FC": { "atk": 0.94, "def": 1.06 },
-    "CF Montréal": { "atk": 0.85, "def": 1.25 }, "Charlotte FC": { "atk": 1.15, "def": 0.90 },
-    "Chicago Fire": { "atk": 1.05, "def": 0.98 }, "Colorado Rapids": { "atk": 0.98, "def": 0.92 },
-    "Columbus Crew": { "atk": 0.95, "def": 1.05 }, "DC United": { "atk": 0.89, "def": 1.02 },
-    "FC Cincinnati": { "atk": 1.12, "def": 1.30 }, "FC Dallas": { "atk": 1.20, "def": 1.04 },
-    "Houston Dynamo": { "atk": 1.02, "def": 0.82 }, "Inter Miami CF": { "atk": 1.45, "def": 1.15 },
-    "LA Galaxy": { "atk": 1.30, "def": 1.05 }, "Los Angeles FC": { "atk": 1.25, "def": 0.79 },
-    "Minnesota United": { "atk": 0.96, "def": 1.10 }, "Nashville SC": { "atk": 1.22, "def": 0.65 },
-    "New England Revolution": { "atk": 1.18, "def": 0.88 }, "New York City FC": { "atk": 0.92, "def": 0.90 },
-    "New York Red Bulls": { "atk": 0.90, "def": 1.15 }, "Orlando City SC": { "atk": 1.16, "def": 1.35 },
-    "Philadelphia Union": { "atk": 1.21, "def": 0.99 }, "Portland Timbers": { "atk": 0.92, "def": 1.08 },
-    "Real Salt Lake": { "atk": 1.28, "def": 1.02 }, "San Diego FC": { "atk": 0.95, "def": 1.00 },
-    "San Jose Earthquakes": { "atk": 0.99, "def": 0.95 }, "Seattle Sounders FC": { "atk": 1.04, "def": 0.89 },
-    "Sporting Kansas City": { "atk": 0.90, "def": 1.38 }, "St.Louis City": { "atk": 1.00, "def": 0.86 },
-    "Toronto FC": { "atk": 0.97, "def": 1.11 }, "Vancouver Whitecaps": { "atk": 1.10, "def": 0.68 }
-  },
-  "BSB": {
-    "América Mineiro": { "atk": 1.15, "def": 1.05 }, "Athletic Club": { "atk": 0.95, "def": 0.98 },
-    "Atlético Goianiense": { "atk": 1.02, "def": 1.02 }, "Avaí": { "atk": 0.98, "def": 1.08 },
-    "Botafogo-SP": { "atk": 0.88, "def": 1.12 }, "Ceará": { "atk": 1.08, "def": 0.95 },
-    "CRB": { "atk": 0.92, "def": 1.10 }, "Criciúma": { "atk": 1.05, "def": 1.00 },
-    "Cuiabá": { "atk": 0.96, "def": 1.05 }, "Fortaleza": { "atk": 1.18, "def": 0.92 },
-    "Goiás": { "atk": 1.02, "def": 1.03 }, "Grêmio Novorizontino": { "atk": 1.12, "def": 0.98 },
-    "Juventude": { "atk": 0.99, "def": 1.06 }, "Londrina": { "atk": 0.94, "def": 1.09 },
-    "Náutico": { "atk": 0.91, "def": 1.14 }, "Operário-PR": { "atk": 1.06, "def": 1.01 },
-    "Ponte Preta": { "atk": 1.04, "def": 1.02 }, "São Bernardo": { "atk": 0.89, "def": 1.11 },
-    "Sport Recife": { "atk": 1.10, "def": 0.96 }, "Vila Nova FC": { "atk": 1.01, "def": 1.04 }
-  },
-  "PPT": {
-    "Académico Viseu FC": { "atk": 0.755, "def": 1.213 }, "Benfica": { "atk": 2.252, "def": 0.573 },
-    "Casa Pia": { "atk": 0.34, "def": 1.216 }, "CD Nacional": { "atk": 0.833, "def": 1.059 },
-    "CF Estrela Amadora": { "atk": 1.163, "def": 1.372 }, "CS Marítimo": { "atk": 0.899, "def": 1.289 },
-    "Estoril Praia": { "atk": 0.651, "def": 1.174 }, "Famalicão": { "atk": 0.801, "def": 0.784 },
-    "FC Alverca": { "atk": 0.788, "def": 1.289 }, "FC Arouca": { "atk": 1.195, "def": 0.736 },
-    "FC Porto": { "atk": 1.519, "def": 0.424 }, "Gil Vicente": { "atk": 0.815, "def": 0.768 },
-    "Moreirense": { "atk": 0.594, "def": 1.465 }, "Rio Ave": { "atk": 0.482, "def": 1.48 },
-    "Santa Clara": { "atk": 1.151, "def": 0.726 }, "Sporting Braga": { "atk": 1.337, "def": 0.832 },
-    "Sporting CP": { "atk": 2.064, "def": 0.72 }, "Vitória SC": { "atk": 0.681, "def": 1.018 }
-  },
-  "EKS": {
-    "GKS Katowice": { "atk": 0.92, "def": 1.06 }, "Górnik Zabrze": { "atk": 1.00, "def": 1.02 },
-    "Jagiellonia Białystok": { "atk": 1.18, "def": 0.94 }, "KS Cracovia": { "atk": 0.96, "def": 1.05 },
-    "Lech Poznań": { "atk": 1.20, "def": 0.92 }, "Legia Warszawa": { "atk": 1.22, "def": 0.90 },
-    "MKS Korona Kielce": { "atk": 0.88, "def": 1.10 }, "Motor Lublin": { "atk": 0.90, "def": 1.08 },
-    "Piast Gliwice": { "atk": 0.98, "def": 1.01 }, "Pogoń Szczecin": { "atk": 1.06, "def": 0.99 },
-    "Radomiak Radom": { "atk": 0.94, "def": 1.06 }, "Raków Częstochowa": { "atk": 1.16, "def": 0.93 },
-    "Śląsk Wrocław": { "atk": 0.90, "def": 1.07 }, "Widzew Łódź": { "atk": 0.98, "def": 1.04 },
-    "Wieczysta Kraków": { "atk": 0.84, "def": 1.12 }, "Wisła Kraków": { "atk": 1.04, "def": 1.02 },
-    "Wisła Płock": { "atk": 0.92, "def": 1.06 }, "Zagłębie Lubin": { "atk": 0.96, "def": 1.05 }
-  },
-  "SPL": {
-    "Abha": { "atk": 0.85, "def": 1.25 }, "Al-Ahli": { "atk": 1.22, "def": 0.95 },
-    "Al-Ettifaq": { "atk": 1.06, "def": 0.96 }, "Al Faisaly": { "atk": 0.90, "def": 1.04 },
-    "Al-Fateh": { "atk": 1.02, "def": 1.12 }, "Al-Fayha": { "atk": 0.94, "def": 1.15 },
-    "Al-Hazem": { "atk": 0.82, "def": 1.28 }, "Al-Hilal": { "atk": 1.48, "def": 0.80 },
-    "Al-Ittihad": { "atk": 1.35, "def": 0.92 }, "Al-Khaleej": { "atk": 0.92, "def": 1.06 },
-    "Al-Kholood": { "atk": 0.88, "def": 1.14 }, "Al-Nassr": { "atk": 1.42, "def": 0.88 },
-    "Al-Qadsiah": { "atk": 1.15, "def": 0.94 }, "Al-Riyadh": { "atk": 0.89, "def": 1.10 },
-    "Al-Shabab": { "atk": 1.12, "def": 0.98 }, "Al-Taawoun": { "atk": 1.08, "def": 1.02 },
-    "Diriyah": { "atk": 0.84, "def": 1.05 }, "Neom SC": { "atk": 1.05, "def": 0.90 }
-  },
-  "SPFL": {
-    "Celtic": { "atk": 1.45, "def": 0.78 }, "Dundee FC": { "atk": 1.05, "def": 1.04 },
-    "Dundee United": { "atk": 0.98, "def": 1.06 }, "Falkirk FC": { "atk": 0.92, "def": 1.10 },
-    "Heart of Midlothian": { "atk": 1.20, "def": 0.90 }, "Hibernian": { "atk": 1.00, "def": 1.08 },
-    "Kilmarnock": { "atk": 0.88, "def": 1.22 }, "Motherwell": { "atk": 1.02, "def": 1.12 },
-    "Rangers": { "atk": 1.35, "def": 0.82 }, "St. Johnstone": { "atk": 0.94, "def": 1.15 },
-    "St. Mirren": { "atk": 0.96, "def": 1.05 }, "Aberdeen": { "atk": 1.08, "def": 1.02 }
-  },
-  "COPPAITALIA": {
-    "AC Milan": { "atk": 1.28, "def": 0.94 }, "Arezzo": { "atk": 0.90, "def": 1.02 },
-    "Ascoli": { "atk": 0.88, "def": 1.06 }, "AS Roma": { "atk": 1.16, "def": 0.96 },
-    "Atalanta": { "atk": 1.35, "def": 0.90 }, "Benevento": { "atk": 0.94, "def": 0.98 },
-    "Bologna": { "atk": 1.10, "def": 0.94 }, "Cagliari": { "atk": 0.96, "def": 1.12 },
-    "Carrarese": { "atk": 0.92, "def": 1.08 }, "Catania": { "atk": 0.93, "def": 0.97 },
-    "Catanzaro": { "atk": 1.04, "def": 1.10 }, "Cesena": { "atk": 1.02, "def": 1.05 },
-    "Como": { "atk": 1.06, "def": 1.14 }, "Cremonese": { "atk": 1.05, "def": 0.96 },
-    "Empoli": { "atk": 0.94, "def": 1.02 }, "Fiorentina": { "atk": 1.18, "def": 0.95 },
-    "Frosinone": { "atk": 0.98, "def": 1.15 }, "Genoa": { "atk": 0.95, "def": 1.08 },
-    "Hellas Verona": { "atk": 0.98, "def": 1.16 }, "Inter": { "atk": 1.42, "def": 0.82 },
-    "Juventus": { "atk": 1.24, "def": 0.78 }, "Juve Stabia": { "atk": 0.94, "def": 1.04 },
-    "Lazio": { "atk": 1.22, "def": 0.98 }, "Lecce": { "atk": 0.86, "def": 1.18 },
-    "L.R. Vicenza": { "atk": 0.95, "def": 0.92 }, "Mantova": { "atk": 0.96, "def": 1.08 },
-    "Modena": { "atk": 0.98, "def": 1.04 }, "Monza": { "atk": 0.92, "def": 1.06 },
-    "Padova": { "atk": 0.96, "def": 0.90 }, "Palermo": { "atk": 1.06, "def": 1.01 },
-    "Parma": { "atk": 1.08, "def": 1.12 }, "Pisa": { "atk": 1.08, "def": 0.95 },
-    "Potenza Calcio": { "atk": 0.88, "def": 1.05 }, "Ravenna": { "atk": 0.82, "def": 1.12 },
-    "Sampdoria": { "atk": 1.06, "def": 1.04 }, "Sassuolo": { "atk": 1.12, "def": 1.02 },
-    "SSC Napoli": { "atk": 1.32, "def": 0.84 }, "Südtirol": { "atk": 0.93, "def": 1.02 },
-    "Torino": { "atk": 1.02, "def": 1.06 }, "Udinese": { "atk": 1.04, "def": 1.05 },
-    "Union Brescia": { "atk": 1.01, "def": 1.02 }, "US Avellino 1912": { "atk": 0.94, "def": 0.96 },
-    "Venezia": { "atk": 0.92, "def": 1.20 }, "Virtus Entella": { "atk": 0.91, "def": 0.93 }
-  },
-  "UCL": {
-    "AGF": { "atk": 1.02, "def": 1.00 }, "Atert Bissen": { "atk": 0.82, "def": 1.14 },
-    "ETO FC Győr": { "atk": 0.90, "def": 1.08 }, "FC Ararat-Armenia": { "atk": 1.08, "def": 0.98 },
-    "FC Drita": { "atk": 1.00, "def": 1.02 }, "FC Iberia 1999": { "atk": 1.04, "def": 0.99 },
-    "FC Petrocub Hîncesti": { "atk": 0.96, "def": 1.05 }, "FC Thun": { "atk": 1.04, "def": 1.00 },
-    "Fenerbahçe": { "atk": 1.26, "def": 0.88 }, "FK Borac Banja Luka": { "atk": 1.02, "def": 1.00 },
-    "FK Crvena zvezda": { "atk": 1.28, "def": 0.86 }, "FK Kauno Žalgiris": { "atk": 0.94, "def": 1.06 },
-    "FK Sutjeska Nikšić": { "atk": 0.88, "def": 1.10 }, "FK Vardar Skopje": { "atk": 0.92, "def": 1.08 },
-    "Flora Tallinn": { "atk": 1.02, "def": 1.01 }, "Floriana FC": { "atk": 0.86, "def": 1.12 },
-    "GNK Dinamo Zagreb": { "atk": 1.24, "def": 0.90 }, "Górnik Zabrze": { "atk": 1.00, "def": 1.02 },
-    "Hapoel Be'er Sheva": { "atk": 1.08, "def": 0.98 }, "Heart of Midlothian": { "atk": 1.14, "def": 0.94 },
-    "Inter Club d'Escaldes": { "atk": 0.90, "def": 1.08 }, "Kairat Almaty": { "atk": 1.04, "def": 0.99 },
-    "KF Egnatia": { "atk": 0.94, "def": 1.04 }, "Klaksvíkar Ítróttarfelag": { "atk": 1.00, "def": 1.02 },
-    "Kuopion Palloseura": { "atk": 1.16, "def": 0.94 }, "Larne FC": { "atk": 0.92, "def": 1.08 },
-    "Lech Poznań": { "atk": 1.20, "def": 0.92 }, "Levski Sofia": { "atk": 1.04, "def": 0.98 },
-    "Lincoln Red Imps": { "atk": 0.88, "def": 1.12 }, "Mjällby AIF": { "atk": 1.02, "def": 0.99 },
-    "ML Vitebsk": { "atk": 0.96, "def": 1.04 }, "NK Celje": { "atk": 1.06, "def": 0.98 },
-    "Omonia Nicosia": { "atk": 1.10, "def": 0.96 }, "Riga FC": { "atk": 1.08, "def": 0.97 },
-    "Sabah FK": { "atk": 0.98, "def": 1.02 }, "Shamrock Rovers": { "atk": 1.06, "def": 0.98 },
-    "ŠK Slovan Bratislava": { "atk": 1.18, "def": 0.92 }, "SK Sturm Graz": { "atk": 1.20, "def": 0.91 },
-    "SP Tre Fiori": { "atk": 0.76, "def": 1.22 }, "The New Saints": { "atk": 1.10, "def": 0.96 },
-    "Universitatea Craiova": { "atk": 1.08, "def": 0.97 }, "Víkingur Reykjavík": { "atk": 1.02, "def": 1.00 }
-  },
-  "UEL": {
-    "Benfica": { "atk": 1.28, "def": 0.88 }, "Beşiktaş JK": { "atk": 1.18, "def": 0.94 },
-    "CSKA Sofia": { "atk": 1.00, "def": 1.02 }, "Derry City": { "atk": 0.82, "def": 1.12 },
-    "Dynamo Kyiv": { "atk": 1.14, "def": 0.94 }, "FC Hradec Králové": { "atk": 0.90, "def": 1.08 },
-    "FC Midtjylland": { "atk": 1.14, "def": 0.94 }, "FC St. Gallen 1879": { "atk": 1.02, "def": 1.00 },
-    "FC Twente": { "atk": 1.12, "def": 0.96 }, "FC Universitatea Cluj": { "atk": 0.88, "def": 1.10 },
-    "FC Viktoria Plzeň": { "atk": 1.10, "def": 0.96 }, "Ferencváros TC": { "atk": 1.12, "def": 0.96 },
-    "FK Vojvodina": { "atk": 0.94, "def": 1.06 }, "Hammarby IF": { "atk": 1.04, "def": 0.99 },
-    "HNK Hajduk Split": { "atk": 1.10, "def": 0.96 }, "IF Vestri": { "atk": 0.78, "def": 1.18 },
-    "Maccabi Tel Aviv": { "atk": 1.16, "def": 0.94 }, "MŠK Žilina": { "atk": 1.02, "def": 1.00 },
-    "NK Aluminij Kidričevo": { "atk": 0.84, "def": 1.12 }, "Pafos FC": { "atk": 1.06, "def": 0.98 },
-    "PAOK": { "atk": 1.18, "def": 0.92 }, "Qarabağ FK": { "atk": 1.16, "def": 0.94 },
-    "RSC Anderlecht": { "atk": 1.14, "def": 0.95 }, "Sheriff Tiraspol": { "atk": 1.00, "def": 1.02 },
-    "Tromsø IL": { "atk": 0.96, "def": 1.04 }
-  },
-  "SD2": {
-    "AD Ceuta": { "atk": 0.96, "def": 1.01 }, "Albacete Balompié": { "atk": 1.03, "def": 1.05 },
-    "Almería": { "atk": 1.10, "def": 1.08 }, "Burgos Club de Fútbol": { "atk": 0.99, "def": 0.98 },
-    "Cádiz": { "atk": 1.01, "def": 1.03 }, "CD Castellón": { "atk": 1.08, "def": 1.07 },
-    "CD Eldense": { "atk": 0.97, "def": 1.02 }, "CD Tenerife": { "atk": 0.94, "def": 1.04 },
-    "Celta Fortuna": { "atk": 1.04, "def": 1.06 }, "CE Sabadell": { "atk": 0.95, "def": 1.00 },
-    "Córdoba": { "atk": 1.00, "def": 1.05 }, "Eibar": { "atk": 1.05, "def": 0.99 },
-    "FC Andorra": { "atk": 0.97, "def": 0.96 }, "Girona FC": { "atk": 1.14, "def": 1.01 },
-    "Granada": { "atk": 1.07, "def": 1.04 }, "Leganés": { "atk": 0.96, "def": 0.95 },
-    "Mallorca": { "atk": 0.97, "def": 0.92 }, "Real Oviedo": { "atk": 1.02, "def": 0.97 },
-    "Real Sociedad B": { "atk": 1.00, "def": 1.03 }, "Real Valladolid": { "atk": 0.95, "def": 1.08 },
-    "Sporting Gijón": { "atk": 1.03, "def": 0.98 }, "UD Las Palmas": { "atk": 0.99, "def": 1.09 }
-  },
-  "CDR": {
-    "AE Prat": { "atk": 1.05, "def": 1.10 }, "Atlético Calatayud": { "atk": 0.92, "def": 1.25 },
-    "Atletico Melilla CF": { "atk": 0.75, "def": 1.65 }, "Atlético Unión Güímar": { "atk": 0.88, "def": 1.30 },
-    "Auriense Cented Academy": { "atk": 0.80, "def": 1.40 }, "CD 6 de Junio": { "atk": 0.70, "def": 1.70 },
-    "CD Anaitasuna FT": { "atk": 0.95, "def": 1.20 }, "CD Baztan": { "atk": 0.85, "def": 1.35 },
-    "CD San José de soria": { "atk": 0.82, "def": 1.38 }, "CD Tedeon": { "atk": 0.80, "def": 1.45 },
-    "CF Sant Rafel": { "atk": 0.90, "def": 1.28 }, "CP Talayuela": { "atk": 0.78, "def": 1.50 },
-    "Noja SD": { "atk": 0.88, "def": 1.32 }, "Ribadesella CF": { "atk": 0.85, "def": 1.35 },
-    "Sporting de Alcazar CF": { "atk": 0.90, "def": 1.25 }, "Sporting Hortaleza": { "atk": 0.92, "def": 1.22 },
-    "UB Lebrijana": { "atk": 0.95, "def": 1.20 }, "UD Maracena": { "atk": 0.88, "def": 1.30 },
-    "UD Pinatar": { "atk": 0.85, "def": 1.35 }, "UE Tavernes": { "atk": 0.92, "def": 1.25 }
-  },
-  "NPLQLD": {
-    "Brisbane City": { "atk": 1.02, "def": 1.04 }, "Brisbane Roar Youth": { "atk": 1.10, "def": 1.15 },
-    "Eastern Suburbs": { "atk": 0.88, "def": 1.18 }, "Gold Coast Knights": { "atk": 1.35, "def": 0.82 },
-    "Gold Coast United": { "atk": 1.06, "def": 0.96 }, "Lions FC": { "atk": 1.28, "def": 0.88 },
-    "Magic United TFA": { "atk": 0.90, "def": 1.12 }, "Moreton City Excelsior FC": { "atk": 1.24, "def": 0.92 },
-    "Olympic FC": { "atk": 0.96, "def": 1.02 }, "Peninsula Power": { "atk": 1.18, "def": 0.94 },
-    "Rochedale Rovers": { "atk": 0.85, "def": 1.16 }, "Wynnum Wolves FC": { "atk": 1.04, "def": 1.10 }
-  },
-  "ELITE": {
-    "Aalesunds FK": { "atk": 0.88, "def": 1.18 }, "Bodø/Glimt": { "atk": 1.42, "def": 0.86 },
-    "Fredrikstad FK": { "atk": 1.05, "def": 0.92 }, "HamKam": { "atk": 0.94, "def": 1.04 },
-    "IK Start": { "atk": 0.90, "def": 1.10 }, "KFUM Oslo": { "atk": 1.02, "def": 0.98 },
-    "Kristiansund BK": { "atk": 0.96, "def": 1.06 }, "Lillestrøm SK": { "atk": 1.00, "def": 1.14 },
-    "Molde FK": { "atk": 1.28, "def": 0.94 }, "Rosenborg BK": { "atk": 1.15, "def": 1.02 },
-    "Sandefjord Fotball": { "atk": 0.98, "def": 1.12 }, "Sarpsborg 08": { "atk": 1.10, "def": 1.16 },
-    "SK Brann": { "atk": 1.26, "def": 0.90 }, "Tromsø IL": { "atk": 0.92, "def": 1.00 },
-    "Vålerenga IF": { "atk": 1.12, "def": 0.95 }, "Viking FK": { "atk": 1.22, "def": 0.96 }
-  },
-  "ALLSV": {
-    "AIK": { "atk": 1.14, "def": 0.94 }, "BK Häcken": { "atk": 1.22, "def": 0.92 },
-    "Degerfors IF": { "atk": 0.86, "def": 1.12 }, "Djurgårdens IF": { "atk": 1.18, "def": 0.92 },
-    "GAIS": { "atk": 1.00, "def": 1.02 }, "Halmstads BK": { "atk": 0.90, "def": 1.08 },
-    "Hammarby IF": { "atk": 1.16, "def": 0.94 }, "IF Brommapojkarna": { "atk": 1.02, "def": 1.01 },
-    "IF Elfsborg": { "atk": 1.14, "def": 0.94 }, "IFK Göteborg": { "atk": 1.04, "def": 0.99 },
-    "IK Sirius": { "atk": 1.00, "def": 1.02 }, "Kalmar FF": { "atk": 0.94, "def": 1.06 },
-    "Malmö FF": { "atk": 1.26, "def": 0.88 }, "Mjällby AIF": { "atk": 1.02, "def": 0.99 },
-    "Örgryte IS": { "atk": 0.88, "def": 1.10 }, "Västerås SK": { "atk": 0.92, "def": 1.07 }
-  },
-  "SUI1": {
-    "Basel": { "atk": 1.20, "def": 0.90 }, "BSC Young Boys": { "atk": 1.26, "def": 0.88 },
-    "FC Lausanne-Sport": { "atk": 1.02, "def": 1.01 }, "FC Lugano": { "atk": 1.06, "def": 0.98 },
-    "FC Luzern": { "atk": 1.00, "def": 1.02 }, "FC Sion": { "atk": 0.92, "def": 1.08 },
-    "FC St. Gallen 1879": { "atk": 1.08, "def": 0.98 }, "FC Thun": { "atk": 0.96, "def": 1.04 },
-    "FC Vaduz": { "atk": 0.90, "def": 1.10 }, "FC Zürich": { "atk": 1.10, "def": 0.96 },
-    "Grasshopper Club Zürich": { "atk": 0.98, "def": 1.03 }, "Servette FC": { "atk": 1.12, "def": 0.95 }
-  },
-  "ABL": {
-    "FK Austria Wien": { "atk": 1.05, "def": 1.05 }, "Grazer AK 1902": { "atk": 0.85, "def": 1.35 },
-    "LASK": { "atk": 1.15, "def": 0.95 }, "Red Bull Salzburg": { "atk": 1.45, "def": 0.80 },
-    "SC Austria Lustenau": { "atk": 0.78, "def": 1.45 }, "SCR Altach": { "atk": 0.80, "def": 1.30 },
-    "SK Rapid Wien": { "atk": 1.20, "def": 0.98 }, "SK Sturm Graz": { "atk": 1.35, "def": 0.88 },
-    "SV Ried": { "atk": 0.90, "def": 1.25 }, "TSV Hartberg": { "atk": 1.00, "def": 1.20 },
-    "Wolfsberger AC": { "atk": 1.08, "def": 1.12 }, "WSG Tirol": { "atk": 0.92, "def": 1.30 }
-  },
-  "ARG": {
-    "Aldosivi": { "atk": 0.85, "def": 1.30 }, "Argentinos Juniors": { "atk": 1.05, "def": 0.95 },
-    "Atlético Tucumán": { "atk": 1.00, "def": 1.05 }, "Banfield": { "atk": 0.90, "def": 1.10 },
-    "Barracas Central": { "atk": 0.85, "def": 1.15 }, "Boca Juniors": { "atk": 1.30, "def": 0.80 },
-    "CA Independiente": { "atk": 1.10, "def": 0.90 }, "CA Lanús": { "atk": 1.10, "def": 1.00 },
-    "CA Talleres": { "atk": 1.15, "def": 0.85 }, "Central Córdoba": { "atk": 0.90, "def": 1.10 },
-    "Club Atlético Belgrano": { "atk": 1.00, "def": 1.00 }, "Club Atlético Platense": { "atk": 0.90, "def": 1.05 },
-    "Club Atlético Unión de Santa Fe": { "atk": 0.95, "def": 1.00 }, "Defensa y Justicia": { "atk": 1.10, "def": 0.95 },
-    "Deportivo Riestra": { "atk": 0.80, "def": 1.20 }, "Estudiantes de La Plata": { "atk": 1.20, "def": 0.85 },
-    "Estudiantes de Río Cuarto": { "atk": 0.85, "def": 1.15 }, "Gimnasia y Esgrima": { "atk": 0.95, "def": 1.05 },
-    "Gimnasia y Esgrima Mendoza": { "atk": 0.90, "def": 1.10 }, "Huracán": { "atk": 1.05, "def": 0.90 },
-    "Independiente Rivadavia": { "atk": 0.85, "def": 1.20 }, "Instituto De Córdoba": { "atk": 0.95, "def": 1.05 },
-    "Newell's Old Boys": { "atk": 1.00, "def": 1.00 }, "Racing Club": { "atk": 1.35, "def": 0.80 },
-    "River Plate": { "atk": 1.40, "def": 0.75 }, "Rosario Central": { "atk": 1.05, "def": 0.95 },
-    "San Lorenzo": { "atk": 1.05, "def": 0.90 }, "Sarmiento": { "atk": 0.80, "def": 1.20 },
-    "Tigre": { "atk": 0.90, "def": 1.15 }, "Vélez Sarsfield": { "atk": 1.15, "def": 0.85 }
-  },
-  "CPA": {
-    "Alianza Valledupar FC": { "atk": 0.693, "def": 1.231 }, "América de Cali": { "atk": 1.211, "def": 0.607 },
-    "Atlético Bucaramanga": { "atk": 1.194, "def": 0.92 }, "Atlético Nacional": { "atk": 1.432, "def": 0.777 },
-    "Boyacá Chicó FC": { "atk": 0.697, "def": 1.33 }, "Deportes Tolima": { "atk": 1.038, "def": 0.812 },
-    "Deportivo Pasto": { "atk": 0.768, "def": 1.193 }, "Fortaleza FC": { "atk": 0.86, "def": 1.202 },
-    "Cúcuta Deportivo": { "atk": 0.79, "def": 1.17 }, "Deportivo Cali": { "atk": 0.98, "def": 0.98 },
-    "Deportivo Pereira": { "atk": 0.67, "def": 1.22 }, "Jaguares de Córdoba": { "atk": 0.76, "def": 1.16 },
-    "Llaneros FC": { "atk": 0.81, "def": 1.09 }, "Rionegro Águilas Doradas": { "atk": 0.96, "def": 1.01 },
-    "Independiente Medellín": { "atk": 1.323, "def": 0.87 }, "Independiente Santa Fe": { "atk": 1.329, "def": 0.747 },
-    "Internacional de Bogotá": { "atk": 0.959, "def": 1.406 }, "Junior Barranquilla": { "atk": 1.183, "def": 0.96 },
-    "Millonarios": { "atk": 1.161, "def": 0.706 }, "Once Caldas": { "atk": 0.914, "def": 1.035 }
+const fileInput = document.getElementById('historial-file');
+const fileInfo = document.getElementById('file-info');
+const runBtn = document.getElementById('run-btn');
+const logSection = document.getElementById('log-section');
+const logDiv = document.getElementById('log');
+const calibrationSection = document.getElementById('calibration-section');
+const calibrationContent = document.getElementById('calibration-content');
+const picksSection = document.getElementById('picks-section');
+const picksContent = document.getElementById('picks-content');
+const resultsSection = document.getElementById('results');
+const resultsContent = document.getElementById('results-content');
+const exportSection = document.getElementById('export-section');
+const exportBtn = document.getElementById('export-btn');
+
+let historial = null;
+let filasComparacion = [];
+
+fileInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  runBtn.disabled = true;
+  historial = null;
+  if (!file) { fileInfo.textContent = ''; return; }
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data.leagueKey || !LIGAS[data.leagueKey]) {
+      fileInfo.textContent = '❌ El archivo no tiene una liga reconocida (leagueKey).';
+      return;
+    }
+    if (!Array.isArray(data.partidos) || data.partidos.length === 0) {
+      fileInfo.textContent = '❌ El archivo no tiene partidos.';
+      return;
+    }
+    historial = data;
+    fileInfo.textContent = `✅ ${data.liga || data.leagueKey} — ${data.partidos.length} partidos cargados.`;
+    runBtn.disabled = false;
+  } catch (err) {
+    fileInfo.textContent = '❌ No se pudo leer el archivo: ' + err.message;
   }
-};
+});
 
-export const HOME_ADVANTAGE = {
-  "PL": 1.078, "BL1": 1.185, "SA": 1.087, "PD": 1.419, "FL1": 1.203,
-  "DED": 1.113, "BSA": 1.317, "ELC": 1.142, "JPL": 1.085, "MXL": 1.281,
-  "LIB": 1.25, "MLS": 1.303, "BSB": 1.435, "PPT": 1.373, "EKS": 1.229,
-  "SPL": 1.165, "CDR": 1.2, "SPFL": 1.25, "SD2": 1.25, "UCL": 1.2,
-  "UEL": 1.2, "COPPAITALIA": 1.2, "ABL": 1.439, "ARG": 1.196, "CPA": 1.263,
-  "ELITE": 1.285, "ALLSV": 1.093, "NPLQLD": 1.25, "SUI1": 1.05
-};
+function fmt(n) { return Number(n).toFixed(1); }
+function log(msg) {
+  logSection.style.display = 'block';
+  logDiv.textContent += msg + '\n';
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
 
-export const DIXON_COLES_RHO = {
-  "PL": -0.065, "BL1": -0.085, "SA": -0.130, "PD": -0.098, "FL1": -0.105,
-  "DED": -0.072, "BSA": -0.090, "ELC": -0.078, "JPL": -0.082, "MXL": -0.095,
-  "LIB": -0.088, "MLS": -0.070, "BSB": -0.092, "PPT": -0.080, "EKS": -0.085,
-  "SPL": -0.075, "CDR": -0.050, "SPFL": -0.080, "SD2": -0.085, "UCL": -0.070,
-  "UEL": -0.078, "COPPAITALIA": -0.090, "ABL": -0.058, "ARG": -0.070, "CPA": -0.095,
-  "ELITE": -0.080, "ALLSV": -0.080, "NPLQLD": -0.100, "SUI1": -0.090,
-  "default": -0.100
-};
+class MarketStats {
+  constructor(name) {
+    this.name = name;
+    this.n = 0; this.hits = 0; this.brierSum = 0; this.sumaReal = 0;
+    this.buckets = { '0-20': [0, 0], '20-40': [0, 0], '40-60': [0, 0], '60-80': [0, 0], '80-100': [0, 0] };
+  }
+  add(predictedPct, actualBool) {
+    if (predictedPct == null || !Number.isFinite(predictedPct)) return;
+    this.n++;
+    this.sumaReal += actualBool ? 1 : 0;
+    if ((predictedPct >= 50) === actualBool) this.hits++;
+    const p = predictedPct / 100;
+    this.brierSum += (p - (actualBool ? 1 : 0)) ** 2;
+    const b = predictedPct < 20 ? '0-20' : predictedPct < 40 ? '20-40' : predictedPct < 60 ? '40-60' : predictedPct < 80 ? '60-80' : '80-100';
+    this.buckets[b][0] += actualBool ? 1 : 0;
+    this.buckets[b][1] += 1;
+  }
+  summary() {
+    const hitRate = this.n ? (this.hits / this.n * 100) : null;
+    const brier = this.n ? (this.brierSum / this.n) : null;
+    const baseRate = this.n ? (this.sumaReal / this.n) : null;
+    const brierBase = baseRate != null ? baseRate * (1 - baseRate) : null;
+    const mejoraVsBase = (brier != null && brierBase != null && brierBase > 0.0001)
+      ? ((brierBase - brier) / brierBase * 100) : null;
+    return { name: this.name, n: this.n, hitRate, brier, baseRate, brierBase, mejoraVsBase, buckets: this.buckets };
+  }
+}
 
-export const PLATT_PARAMS = { goals15: { A: 0.951, B: -0.038 }, goals25: { A: 0.933, B: -0.055 }, goals35: { A: 0.933, B: -0.055 }, btts: { A: 0.956, B: -0.034 }, corners: { A: 0.970, B: -0.022 }, goals_ht05: { A: 0.960, B: -0.030 }, goals_ht15: { A: 0.938, B: -0.048 }, resultado: { A: 0.918, B: -0.068 } };
+async function calibrarLiga(leagueKey, partidos) {
+  partidos = [...partidos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  const tasasFull = calcularTasasBase(partidos);
+  if (tasasFull.n < CAL_MIN_PARTIDOS) {
+    log(`⚠️ Solo ${tasasFull.n} partidos — se omite la calibración.`);
+    return { calibracion: null, tasas: tasasFull, historial: [], leagueKey };
+  }
+  log(`\n🎯 Calibrando ${leagueKey} por máxima verosimilitud (ventana de ${AutoCalibrate.CONFIG.VENTANA} partidos)...`);
+  const auto = await AutoCalibrate.ejecutar(leagueKey, partidos, { force: true, onLog: log });
+  if (!auto.calibracion) {
+    log(`⚠️ ${auto.razon || 'No se pudo calibrar'} — se omite la calibración.`);
+    return { calibracion: null, tasas: auto.tasas || tasasFull, historial: auto.historial || [], leagueKey, diagnostico: auto.diagnostico };
+  }
+  log(`   ℹ️ Las métricas de abajo se miden sobre los mismos partidos usados para ajustar (in-sample); el hold-out de arriba es la señal fuera de muestra.`);
+  return { calibracion: auto.calibracion, tasas: auto.tasas || tasasFull, historial: auto.historial || [], leagueKey, diagnostico: auto.diagnostico };
+}
 
-export const CORNER_HOME_BIAS = 1.12;
+function renderCalibracion(resultado) {
+  if (!resultado) return;
+  const { calibracion, tasas, historial, leagueKey } = resultado;
+  calibrationSection.style.display = 'block';
+  if (!calibracion) {
+    calibrationContent.innerHTML = `<p style="color:var(--chalk-dim)">Liga con ${tasas?.n ?? 0} partidos — no se calibró (mínimo ${CAL_MIN_PARTIDOS}).</p>`;
+    return;
+  }
+  const ultimo = historial?.[historial.length - 1];
+  if (!ultimo) return;
+  const fila = (label, real, pred) => {
+    const d = Math.abs(real - pred);
+    const color = d < 0.03 ? 'var(--green)' : d < 0.06 ? 'var(--yellow)' : 'var(--red)';
+    return `<div class="compare-row"><span>${label}</span><span class="grid-plain">real ${fmt(real*100)}%</span><span class="grid-plain" style="color:${color}">pred ${fmt(pred*100)}%</span></div>`;
+  };
+  const originalHA = HOME_ADVANTAGE[leagueKey];
+  const hold = resultado.diagnostico?.holdout;
+  const originalRho = DIXON_COLES_RHO[leagueKey];
+  const umbrales = getUmbrales(leagueKey);
+  calibrationContent.innerHTML = `
+    <div class="card">
+      <h3>Parámetros derivados <small>(auto)</small></h3>
+      <div class="compare-row">
+        <span>HOME_ADVANTAGE</span>
+        <span class="grid-plain">${(originalHA ?? 1.25).toFixed(3)} original</span>
+        <span class="prob" style="color:var(--green)">${calibracion.homeAdvantage.toFixed(3)}</span>
+      </div>
+      <div class="compare-row">
+        <span>DIXON_COLES_RHO</span>
+        <span class="grid-plain">${(originalRho ?? -0.1).toFixed(3)} original</span>
+        <span class="prob" style="color:${calibracion.rho <= -0.19 ? 'var(--yellow)' : 'var(--green)'}">${calibracion.rho.toFixed(3)}</span>
+      </div>
+      <h3 class="corner-team-title">Distribución: real vs predicha (calibrada)</h3>
+      <div class="compare-row compare-head"><span>Resultado</span><span>Real</span><span>Modelo</span></div>
+      ${fila('Local gana', tasas.homeRate, ultimo.predHome)}
+      ${fila('Empate', tasas.drawRate, ultimo.predDraw)}
+      ${fila('Visitante gana', tasas.awayRate, ultimo.predAway)}
+      <h3 class="corner-team-title">Umbrales activos para ${leagueKey}</h3>
+      <div class="compare-row"><span>1X2 favorito mínimo</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${umbrales.umbral1x2}%</span></div>
+      <div class="compare-row"><span>Goles (Over X.5)</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${umbrales.umbralGoles}%</span></div>
+      <div class="compare-row"><span>Córners totales</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${umbrales.umbralCorners}%</span></div>
+      <div class="compare-row"><span>BTTS</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${umbrales.umbralBtss}%</span></div>
+      <div class="compare-row"><span>Filtro EV mínimo</span><span class="grid-plain"></span><span class="prob" style="color:var(--green)">${FILTRO_EV}</span></div>
+      <p style="margin:10px 0 0; font-size:0.8rem; color:var(--chalk-dim)">
+        Error total L/E/V: ${fmt(ultimo.err * 100)}% · goles/partido usados: ${calibracion.goalsAvg?.toFixed(2) ?? '—'}.
+        ${hold ? `Hold-out (${hold.nTest} partidos): ${hold.aceptado ? 'ajuste aceptado' : 'el ajuste no mejoraba → se mantuvo el valor base'} (dif ${hold.mejora} ± ${hold.se}).` : 'Muestra chica: sin hold-out.'}
+        Shrinkage activo (α=${SHRINK_ALPHA}).
+      </p>
+    </div>`;
+}
 
-export const CORNER_HOME_BIAS_LEAGUE = {
-  BSA: 1.66,
-};
+function calcularRecomendacion(p, pred, resultProbsFinal, leagueKey) {
+  const U = getUmbrales(leagueKey);
+  const betting = LIGAS[leagueKey]?.betting || {};
+  const statusLiga = betting.status || 'unknown';
+  const mercadosLiga = betting.mercados || [];
 
-export const BZZOIRO_COUNTRY = {
-  PL: 'England', ELC: 'England',
-  BL1: 'Germany',
-  SA: 'Italy', COPPAITALIA: 'Italy',
-  PD: 'Spain', SD2: 'Spain', CDR: 'Spain',
-  FL1: 'France',
-  DED: 'Netherlands',
-  BSA: 'Brazil', BSB: 'Brazil',
-  MXL: 'Mexico',
-  JPL: 'Belgium',
-  MLS: 'USA',
-  PPT: 'Portugal',
-  EKS: 'Poland',
-  SPL: 'Saudi Arabia',
-  SPFL: 'Scotland',
-  NPLQLD: 'Australia',
-  ELITE: 'Norway',
-  ALLSV: 'Sweden',
-  SUI1: 'Switzerland',
-  ABL: 'Austria',
-  ARG: 'Argentina',
-  CPA: 'Colombia'
-};
+  const rec = {
+    fecha: p.fecha ?? '', local: p.local, visitante: p.visitante,
+    real: p.goles_local != null ? `${p.goles_local}-${p.goles_visitante}` : null,
+    resultado: null, totalGoles: null,
+    cornersLocal: p.corners_local ?? null, cornersVisit: p.corners_visitante ?? null,
+    picks: [], sin1x2: null, sinEV: [],
+  };
 
-// ============================================================================
-// CONFIGURACIÓN COMPARTIDA
-// ============================================================================
-export const MODEL_VERSION = 2;
+  if (statusLiga === 'red') return rec;
 
-export const DEFAULT_HOME_ADV = 1.25;
-export const DEFAULT_RHO = -0.10;
-export const HA_MIN = 1.05, HA_MAX = 1.45;
-export const RHO_MIN = -0.20, RHO_MAX = 0.05;
+  const permite = (mercado) => {
+    if (statusLiga !== 'green' && statusLiga !== 'yellow') return false;
+    if (mercadosLiga.length === 0) return false;
+    return mercadosLiga.some(m => mercado.includes(m) || m.includes(mercado));
+  };
 
-export const RATING_SHRINK = 0.85;
-export const RATING_MIN = 0.45, RATING_MAX = 1.90;
+  if (p.goles_local != null && p.goles_visitante != null) {
+    rec.totalGoles = p.goles_local + p.goles_visitante;
+    rec.resultado = p.goles_local > p.goles_visitante ? 'local'
+                  : p.goles_local < p.goles_visitante ? 'visitante' : 'empate';
+  }
 
-export const LIVE_PRIOR_GAMES = 6;
-export const GOALS_AVG_PRIOR_MATCHES = 20;
+  const max1x2 = Math.max(resultProbsFinal.local, resultProbsFinal.empate, resultProbsFinal.visitante);
+  if (max1x2 >= U.umbral1x2 && permite('1X2')) {
+    let pick;
+    if (resultProbsFinal.local === max1x2) pick = { code: '1', label: 'Local gana', prob: resultProbsFinal.local, casaOdds: p.odds_local, hit: rec.resultado === 'local' };
+    else if (resultProbsFinal.empate === max1x2) pick = { code: 'X', label: 'Empate', prob: resultProbsFinal.empate, casaOdds: p.odds_empate, hit: rec.resultado === 'empate' };
+    else pick = { code: '2', label: 'Visitante gana', prob: resultProbsFinal.visitante, casaOdds: p.odds_visitante, hit: rec.resultado === 'visitante' };
+    if (pasaEV(pick.prob, pick.casaOdds)) {
+      rec.picks.push({ mercado: '1X2', ...pick, tieneReal: rec.resultado != null });
+    } else {
+      rec.sinEV.push({ label: pick.label, prob: pick.prob, cuota: pick.casaOdds });
+    }
+  }
 
-export const ML_MAX_WEIGHT = 0.6;
+  const lineas = [
+    { code: 'over35', label: 'Over 3.5 goles', prob: pred.over35, umbral: 3.5, casaOdds: p.odds_over35, mercado: 'Over 3.5' },
+    { code: 'over25', label: 'Over 2.5 goles', prob: pred.over25, umbral: 2.5, casaOdds: p.odds_over25, mercado: 'Over 2.5' },
+    { code: 'over15', label: 'Over 1.5 goles', prob: pred.over15, umbral: 1.5, casaOdds: p.odds_over15, mercado: 'Over 1.5' },
+  ];
+  for (const l of lineas) {
+    if (l.prob != null && l.prob >= U.umbralGoles && permite(l.mercado)) {
+      if (!pasaEV(l.prob, l.casaOdds)) {
+        rec.sinEV.push({ label: l.label, prob: l.prob, cuota: l.casaOdds });
+        break;
+      }
+      const hit = rec.totalGoles != null ? rec.totalGoles > l.umbral : null;
+      rec.picks.push({ mercado: 'Goles', code: l.code, label: l.label, prob: l.prob, casaOdds: l.casaOdds, hit, tieneReal: rec.totalGoles != null });
+      break;
+    }
+  }
 
-export const FILTRO_EV = 1.05;
-export const SHRINK_ALPHA = 0.15;
+  if (pred.btts != null && pred.btts >= U.umbralBtss && permite('BTTS')) {
+    if (pasaEV(pred.btts, p.odds_btts_si)) {
+      const hit = (p.goles_local != null && p.goles_visitante != null) ? (p.goles_local > 0 && p.goles_visitante > 0) : null;
+      rec.picks.push({ mercado: 'BTTS', code: 'btts_si', label: 'Ambos marcan (Sí)', prob: pred.btts, casaOdds: p.odds_btts_si, hit, tieneReal: hit != null });
+    } else {
+      rec.sinEV.push({ label: 'BTTS Sí', prob: pred.btts, cuota: p.odds_btts_si });
+    }
+  }
 
-// Umbrales por liga. CPA ahora con umbral1x2=50 y umbralGoles=60 (era 55/65).
-// Córners todos a 75 (evita spam).
-export const UMBRALES_POR_LIGA = {
-  PL:  { umbral1x2: 50, umbralGoles: 75, umbralCorners: 75, umbralBtss: 70, cornersVisitante: false },
-  BSB: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: true },
-  ARG: { umbral1x2: 55, umbralGoles: 65, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
-  MLS: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 75, umbralBtss: 65, cornersVisitante: false },
-  BSA: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 75, umbralBtss: 65, cornersVisitante: true },
-  CPA: { umbral1x2: 50, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
-  MXL: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 75, umbralBtss: 65, cornersVisitante: true },
-  ELC: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
-  PPT: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
-  FL1: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
-  JPL: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
-  BL1: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
-  SUI1: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
-  DEFAULT: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: true },
-};
+  if (pred.cornerProbs) {
+    const lineasC = [
+      { code: 'c_over95', label: 'Over 9.5 córners', prob: pred.cornerProbs.over9, umbral: 9.5 },
+      { code: 'c_over85', label: 'Over 8.5 córners', prob: pred.cornerProbs.over8, umbral: 8.5 },
+      { code: 'c_over75', label: 'Over 7.5 córners', prob: pred.cornerProbs.over7, umbral: 7.5 },
+    ];
+    for (const l of lineasC) {
+      if (l.prob != null && l.prob >= U.umbralCorners) {
+        const hit = (p.corners_local != null && p.corners_visitante != null) ? (p.corners_local + p.corners_visitante > l.umbral) : null;
+        rec.picks.push({ mercado: 'Córners totales', code: l.code, label: l.label, prob: l.prob, casaOdds: null, hit, tieneReal: hit != null, sinCuota: true });
+        break;
+      }
+    }
+  }
 
-export function getUmbrales(leagueKey) {
-  return UMBRALES_POR_LIGA[leagueKey] || UMBRALES_POR_LIGA.DEFAULT;
+  return rec;
+}
+
+class PicksStats {
+  constructor(umbrales) {
+    this.umbrales = umbrales;
+    this.mercados = {
+      '1X2': { n: 0, nCuota: 0, hits: 0, profit: 0, label: `1X2 (favorito ≥ ${umbrales.umbral1x2}%)` },
+      'Over 1.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 1.5 goles' },
+      'Over 2.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 2.5 goles' },
+      'Over 3.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 3.5 goles' },
+      'BTTS Sí': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Ambos marcan (Sí)' },
+      'Córners totales Over 7.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 7.5 córners totales' },
+      'Córners totales Over 8.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 8.5 córners totales' },
+      'Córners totales Over 9.5': { n: 0, nCuota: 0, hits: 0, profit: 0, label: 'Over 9.5 córners totales' },
+    };
+    this.partidosConPick = 0;
+  }
+  add(rec) {
+    if (rec.picks.length > 0) this.partidosConPick++;
+    for (const pick of rec.picks) {
+      if (!pick.tieneReal) continue;
+      let key;
+      if (pick.mercado === '1X2') key = '1X2';
+      else if (pick.mercado === 'Goles') {
+        if (pick.code === 'over15') key = 'Over 1.5';
+        else if (pick.code === 'over25') key = 'Over 2.5';
+        else if (pick.code === 'over35') key = 'Over 3.5';
+      } else if (pick.mercado === 'BTTS') key = 'BTTS Sí';
+      else if (pick.mercado === 'Córners totales') {
+        if (pick.code === 'c_over75') key = 'Córners totales Over 7.5';
+        else if (pick.code === 'c_over85') key = 'Córners totales Over 8.5';
+        else if (pick.code === 'c_over95') key = 'Córners totales Over 9.5';
+      }
+      if (!key || !this.mercados[key]) continue;
+      this.mercados[key].n++;
+      if (pick.casaOdds) this.mercados[key].nCuota++;
+      if (pick.hit) {
+        this.mercados[key].hits++;
+        if (pick.casaOdds) this.mercados[key].profit += (pick.casaOdds - 1);
+      } else {
+        if (pick.casaOdds) this.mercados[key].profit -= 1;
+      }
+    }
+  }
+  summary() {
+    const out = [];
+    for (const [k, v] of Object.entries(this.mercados)) {
+      out.push({ key: k, label: v.label, n: v.n, hits: v.hits, rate: v.n ? v.hits / v.n * 100 : null, profit: v.profit, nCuota: v.nCuota, roi: v.nCuota ? (v.profit / v.nCuota) * 100 : null });
+    }
+    return { mercados: out, partidosConPick: this.partidosConPick };
+  }
+}
+
+function colorPick(v) { return v == null ? 'var(--chalk-dim)' : v >= 70 ? 'var(--green)' : v >= 60 ? 'var(--yellow)' : 'var(--red)'; }
+function colorROI(roi) { return roi == null ? 'var(--chalk-dim)' : roi > 2 ? 'var(--green)' : roi >= -2 ? 'var(--yellow)' : 'var(--red)'; }
+function valorEV(probPct, casaOdds) { if (!probPct || !casaOdds) return null; return (probPct / 100) * casaOdds; }
+
+function renderPicks(recs, stats, leagueKey) {
+  if (!recs || recs.length === 0) return;
+  picksSection.style.display = 'block';
+  const U = getUmbrales(leagueKey);
+  const conPicks = recs.filter(r => r.picks.length > 0);
+  const sinPicks = recs.filter(r => r.picks.length === 0);
+
+  const resumen = stats.mercados.filter(m => m.n > 0).map(m => {
+    const c = colorPick(m.rate), roiColor = colorROI(m.roi);
+    const rateTxt = m.rate == null ? '—' : fmt(m.rate) + '%';
+    const roiTxt = m.roi == null ? '—' : (m.roi >= 0 ? '+' : '') + fmt(m.roi) + '%';
+    const profitTxt = m.profit == null || !Number.isFinite(m.profit) ? '—' : (m.profit >= 0 ? '+' : '') + m.profit.toFixed(2);
+    return `<div class="compare-row"><span>${m.label}</span><span class="grid-plain">${m.n} pick${m.n === 1 ? '' : 's'}</span><span class="grid-plain" style="color:${c}">${rateTxt}</span><span class="grid-plain" style="color:${roiColor}">${roiTxt} (${profitTxt}u)</span></div>`;
+  }).join('');
+
+  const resumenHTML = `
+    <div class="card" style="border:2px solid var(--green);">
+      <h3>📊 Resumen de picks <small>(${stats.partidosConPick}/${recs.length} partidos con al menos un pick)</small></h3>
+      <div class="compare-row compare-head"><span>Mercado</span><span>Picks</span><span>Acierto</span><span>ROI (profit)</span></div>
+      ${resumen || '<div class="compare-row"><span>Sin picks con resultado real.</span></div>'}
+      <p style="margin:10px 0 0; font-size:0.78rem; color:var(--chalk-dim); line-height:1.5;">
+        <strong>Reglas para ${leagueKey}:</strong>
+        1X2 ≥ ${U.umbral1x2}% · Goles ≥ ${U.umbralGoles}% · BTTS ≥ ${U.umbralBtss}% · Córners totales ≥ ${U.umbralCorners}% · Filtro EV ≥ ${FILTRO_EV}.
+        <br><strong>Partidos sin picks:</strong> ${sinPicks.length}.
+      </p>
+    </div>`;
+
+  const ordenados = [...conPicks].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  const cards = ordenados.slice(0, 50).map(r => {
+    const fechaCorta = r.fecha ? r.fecha.slice(0, 10) : '';
+    const realTxt = r.real ? `Real: <strong>${r.real}</strong> (${r.resultado})` : 'Real: sin datos';
+    const picksHTML = r.picks.map(pick => {
+      const marca = pick.tieneReal ? (pick.hit ? '✅' : '❌') : '⏳';
+      const realDetalle = pick.tieneReal
+        ? (pick.mercado === 'Córners totales' ? `${(r.cornersLocal ?? 0) + (r.cornersVisit ?? 0)} córners` : `${r.totalGoles} goles`)
+        : '';
+      const ev = valorEV(pick.prob, pick.casaOdds);
+      const valorBadge = ev != null ? (ev >= FILTRO_EV ? `<span style="color:var(--green); font-size:0.75rem;">· VALOR (EV ${ev.toFixed(2)})</span>` : `<span style="color:var(--chalk-dim); font-size:0.75rem;">· sin valor (EV ${ev.toFixed(2)})</span>`) : '';
+      return `<div class="compare-row" style="grid-template-columns: 1fr auto auto;"><span>${marca} ${pick.label}</span><span class="grid-plain" style="color:${colorPick(pick.prob)}">${fmt(pick.prob)}%</span><span class="grid-plain" style="font-size:0.75rem;">${realDetalle} ${valorBadge}</span></div>`;
+    }).join('');
+    return `<div class="card"><h3 style="font-size:1rem;">${r.local} vs ${r.visitante}</h3><p style="margin:2px 0 8px; font-size:0.75rem; color:var(--chalk-dim);">${fechaCorta} · ${realTxt}</p>${picksHTML}</div>`;
+  }).join('');
+
+  picksContent.innerHTML = resumenHTML + `<h2 style="font-family:'Anton',sans-serif;font-size:1.15rem;letter-spacing:0.02em;color:var(--chalk);margin:20px 0 10px;">Detalle por partido (${ordenados.length}${ordenados.length > 50 ? ', mostrando 50' : ''})</h2>${cards || '<div class="card"><p style="color:var(--chalk-dim);">Sin partidos con picks.</p></div>'}`;
+}
+
+runBtn.addEventListener('click', async () => {
+  if (!historial) return;
+  runBtn.disabled = true;
+  runBtn.textContent = 'Calculando...';
+  logDiv.textContent = '';
+  resultsSection.style.display = 'none';
+  exportSection.style.display = 'none';
+  calibrationSection.style.display = 'none';
+  picksSection.style.display = 'none';
+  filasComparacion = [];
+
+  const leagueKey = historial.leagueKey;
+  const partidos = historial.partidos;
+  const umbrales = getUmbrales(leagueKey);
+
+  const calResult = await calibrarLiga(leagueKey, partidos);
+  const calibracion = calResult.calibracion;
+  const tasas = calResult.tasas;
+  renderCalibracion(calResult);
+
+  log(`\n▶ Corriendo backtest con calibración ${calibracion ? 'ACTIVA' : 'por defecto'}...`);
+  log(`   Filtro EV ≥ ${FILTRO_EV} aplicado a picks con cuota.`);
+  log(`   Umbrales ${leagueKey}: 1X2 ≥${umbrales.umbral1x2}% · Goles ≥${umbrales.umbralGoles}% · BTTS ≥${umbrales.umbralBtss}% · Córners totales ≥${umbrales.umbralCorners}%`);
+
+  const markets = {
+    local: new MarketStats('Local gana'), empate: new MarketStats('Empate'), visitante: new MarketStats('Visitante gana'),
+    over15: new MarketStats('Over 1.5 goles'), over25: new MarketStats('Over 2.5 goles'), over35: new MarketStats('Over 3.5 goles'),
+    btts: new MarketStats('Ambos marcan'),
+    corners75: new MarketStats('Over 7.5 córners'), corners85: new MarketStats('Over 8.5 córners'), corners95: new MarketStats('Over 9.5 córners'),
+  };
+  const mercado = {
+    local: new MarketStats('Local gana'), empate: new MarketStats('Empate'), visitante: new MarketStats('Visitante gana'),
+    over15: new MarketStats('Over 1.5 goles'), over25: new MarketStats('Over 2.5 goles'), over35: new MarketStats('Over 3.5 goles'), btts: new MarketStats('Ambos marcan'),
+  };
+  const modeloVsMercado = {
+    local: new MarketStats('Local gana'), empate: new MarketStats('Empate'), visitante: new MarketStats('Visitante gana'),
+    over15: new MarketStats('Over 1.5 goles'), over25: new MarketStats('Over 2.5 goles'), over35: new MarketStats('Over 3.5 goles'), btts: new MarketStats('Ambos marcan'),
+  };
+
+  const picksStats = new PicksStats(umbrales);
+  const todasLasRecs = [];
+  let evaluados = 0, saltados = 0, conSinEV = 0;
+
+  for (const p of partidos) {
+    if (p.goles_local == null || p.goles_visitante == null || !p.local || !p.visitante) { saltados++; continue; }
+    let pred;
+    try { pred = await simulateMatch(leagueKey, p.local, p.visitante, { staticOnly: true, calibracion }); }
+    catch (e) { saltados++; continue; }
+
+    const resultProbsFinal = SHRINK_ALPHA > 0 && tasas ? shrinkHaciaBase(pred.resultProbs, tasas, SHRINK_ALPHA) : pred.resultProbs;
+    const rec = calcularRecomendacion(p, pred, resultProbsFinal, leagueKey);
+    if (rec.sinEV.length > 0) conSinEV++;
+    todasLasRecs.push(rec);
+    picksStats.add(rec);
+
+    const totalGoles = p.goles_local + p.goles_visitante;
+    const resultado = p.goles_local > p.goles_visitante ? 'local' : p.goles_local < p.goles_visitante ? 'visitante' : 'empate';
+
+    markets.local.add(resultProbsFinal.local, resultado === 'local');
+    markets.empate.add(resultProbsFinal.empate, resultado === 'empate');
+    markets.visitante.add(resultProbsFinal.visitante, resultado === 'visitante');
+    markets.over15.add(pred.over15, totalGoles > 1.5);
+    markets.over25.add(pred.over25, totalGoles > 2.5);
+    markets.over35.add(pred.over35, totalGoles > 3.5);
+    markets.btts.add(pred.btts, p.goles_local > 0 && p.goles_visitante > 0);
+
+    if (p.odds_local != null && p.odds_empate != null && p.odds_visitante != null) {
+      const [fL, fE, fV] = devigar3(p.odds_local, p.odds_empate, p.odds_visitante) || [];
+      if (fL != null) {
+        mercado.local.add(fL, resultado === 'local');
+        mercado.empate.add(fE, resultado === 'empate');
+        mercado.visitante.add(fV, resultado === 'visitante');
+        modeloVsMercado.local.add(resultProbsFinal.local, resultado === 'local');
+        modeloVsMercado.empate.add(resultProbsFinal.empate, resultado === 'empate');
+        modeloVsMercado.visitante.add(resultProbsFinal.visitante, resultado === 'visitante');
+      }
+    }
+    const fOver15 = devigar2(p.odds_over15, p.odds_under15);
+    if (fOver15 != null) { mercado.over15.add(fOver15, totalGoles > 1.5); modeloVsMercado.over15.add(pred.over15, totalGoles > 1.5); }
+    const fOver25 = devigar2(p.odds_over25, p.odds_under25);
+    if (fOver25 != null) { mercado.over25.add(fOver25, totalGoles > 2.5); modeloVsMercado.over25.add(pred.over25, totalGoles > 2.5); }
+    const fOver35 = devigar2(p.odds_over35, p.odds_under35);
+    if (fOver35 != null) { mercado.over35.add(fOver35, totalGoles > 3.5); modeloVsMercado.over35.add(pred.over35, totalGoles > 3.5); }
+    const fBtts = devigar2(p.odds_btts_si, p.odds_btts_no);
+    if (fBtts != null) { mercado.btts.add(fBtts, p.goles_local > 0 && p.goles_visitante > 0); modeloVsMercado.btts.add(pred.btts, p.goles_local > 0 && p.goles_visitante > 0); }
+
+    if (p.corners_local != null && p.corners_visitante != null && pred.cornerProbs) {
+      const totalCorners = p.corners_local + p.corners_visitante;
+      markets.corners75.add(pred.cornerProbs.over7, totalCorners > 7.5);
+      markets.corners85.add(pred.cornerProbs.over8, totalCorners > 8.5);
+      markets.corners95.add(pred.cornerProbs.over9, totalCorners > 9.5);
+    }
+
+    filasComparacion.push({
+      fecha: p.fecha ?? '', local: p.local, visitante: p.visitante,
+      app: {
+        local: resultProbsFinal.local, empate: resultProbsFinal.empate, visitante: resultProbsFinal.visitante,
+        over15: pred.over15, over25: pred.over25, over35: pred.over35, btts: pred.btts,
+        corners_over75: pred.cornerProbs?.over7 ?? null, corners_over85: pred.cornerProbs?.over8 ?? null, corners_over95: pred.cornerProbs?.over9 ?? null,
+      },
+      real: {
+        goles_local: p.goles_local, goles_visitante: p.goles_visitante,
+        total_goles: totalGoles, resultado,
+        over15: totalGoles > 1.5 ? 1 : 0, over25: totalGoles > 2.5 ? 1 : 0, over35: totalGoles > 3.5 ? 1 : 0,
+        btts: (p.goles_local > 0 && p.goles_visitante > 0) ? 1 : 0,
+        corners_local: p.corners_local ?? null, corners_visitante: p.corners_visitante ?? null,
+        corners_total: (p.corners_local != null && p.corners_visitante != null) ? p.corners_local + p.corners_visitante : null,
+      },
+      casa: {
+        odds_local: p.odds_local ?? null, odds_empate: p.odds_empate ?? null, odds_visitante: p.odds_visitante ?? null,
+        odds_over15: p.odds_over15 ?? null, odds_under15: p.odds_under15 ?? null,
+        odds_over25: p.odds_over25 ?? null, odds_under25: p.odds_under25 ?? null,
+        odds_over35: p.odds_over35 ?? null, odds_under35: p.odds_under35 ?? null,
+        odds_btts_si: p.odds_btts_si ?? null, odds_btts_no: p.odds_btts_no ?? null,
+      },
+    });
+
+    evaluados++;
+    if (evaluados % 20 === 0) log(`  ${evaluados}/${partidos.length}...`);
+  }
+
+  log(`\n✅ Listo. ${evaluados} evaluados, ${saltados} salteados.`);
+  log(`📋 Picks generados en ${picksStats.partidosConPick}/${evaluados} partidos.`);
+  log(`🚫 ${conSinEV} partidos tenían picks potenciales que no pasaron el filtro EV.`);
+
+  const mercadoResumen = {};
+  for (const [k, m] of Object.entries(mercado)) mercadoResumen[k] = m.summary();
+  const modeloVsMercadoResumen = {};
+  for (const [k, m] of Object.entries(modeloVsMercado)) modeloVsMercadoResumen[k] = m.summary();
+
+  try { renderPicks(todasLasRecs, picksStats.summary(), leagueKey); }
+  catch (err) {
+    console.error('❌ Error en renderPicks:', err);
+    picksSection.style.display = 'block';
+    picksContent.innerHTML = `<div class="card"><h3>⚠️ Error al renderizar picks</h3><p style="color:var(--red);font-size:0.8rem;">${err.message}</p></div>`;
+  }
+
+  try {
+    renderResults(
+      Object.entries(markets).map(([k, m]) => ({ key: k, ...m.summary() })),
+      mercadoResumen,
+      modeloVsMercadoResumen
+    );
+  } catch (err) {
+    console.error('❌ Error en renderResults:', err);
+    resultsSection.style.display = 'block';
+    resultsContent.innerHTML = `<div class="card"><h3>⚠️ Error al renderizar resultados</h3><p style="color:var(--red);font-size:0.8rem;">${err.message}</p></div>`;
+  }
+
+  calibrationSection.style.display = 'block';
+  picksSection.style.display = 'block';
+  resultsSection.style.display = 'block';
+  exportSection.style.display = 'block';
+  runBtn.disabled = false;
+  runBtn.textContent = 'Ejecutar backtest';
+});
+
+function vsBaseColor(m) { return m == null ? 'var(--chalk-dim)' : m >= 10 ? 'var(--green)' : m >= 0 ? 'var(--yellow)' : 'var(--red)'; }
+function vsBaseNote(m, baseRate) {
+  if (m == null) return '';
+  const br = baseRate * 100; const signo = m >= 0 ? '+' : '';
+  if (m >= 10) return `${signo}${fmt(m)}% mejor que solo saber que esto pasa ${fmt(br)}% de las veces`;
+  if (m >= 0) return `${signo}${fmt(m)}% mejor que adivinar el ${fmt(br)}% de siempre`;
+  return `${fmt(m)}% peor que adivinar el ${fmt(br)}% de siempre`;
+}
+function bucketRows(buckets) {
+  return Object.entries(buckets).filter(([, v]) => v[1] > 0).map(([range, [hits, total]]) => `<div class="compare-row"><span>Predijo ${range}%</span><span class="grid-plain">${total} partidos</span><span class="grid-plain">pasó ${fmt(hits / total * 100)}%</span></div>`).join('');
+}
+function vsMercadoColor(m) { return m == null ? 'var(--chalk-dim)' : m > 2 ? 'var(--green)' : m >= -2 ? 'var(--yellow)' : 'var(--red)'; }
+function vsMercadoNote(modeloSum, mercadoSum) {
+  if (!mercadoSum || mercadoSum.n < 20) return null;
+  const mejora = ((mercadoSum.brier - modeloSum.brier) / mercadoSum.brier) * 100;
+  const signo = mejora >= 0 ? '+' : '';
+  let texto;
+  if (mejora > 2) texto = `${signo}${fmt(mejora)}% mejor que la cuota real`;
+  else if (mejora >= -2) texto = `${signo}${fmt(mejora)}% — prácticamente empatado con la cuota real`;
+  else texto = `${fmt(mejora)}% peor que la cuota real`;
+  return { texto, mejora, n: mercadoSum.n };
+}
+function renderResults(summaries, mercadoResumen = {}, modeloVsMercadoResumen = {}) {
+  const conDatos = summaries.filter(s => s.n > 0);
+  if (conDatos.length === 0) {
+    resultsContent.innerHTML = `<div class="card"><h3>Sin datos suficientes</h3></div>`;
+    resultsSection.style.display = 'block';
+    return;
+  }
+  resultsContent.innerHTML = conDatos.map(s => {
+    const vColor = vsBaseColor(s.mejoraVsBase);
+    const rows = bucketRows(s.buckets);
+    const mComp = s.key ? vsMercadoNote(modeloVsMercadoResumen[s.key], mercadoResumen[s.key]) : null;
+    return `<div class="card"><h3>${s.name} <small>(${s.n} partidos)</small></h3><div class="prob-row"><div class="prob-row-top"><span>Acierto (umbral 50%)</span><span class="prob" style="color:${s.hitRate >= 55 ? 'var(--green)' : s.hitRate >= 48 ? 'var(--yellow)' : 'var(--red)'}">${fmt(s.hitRate)}%</span></div><div class="semaforo-track"><div class="semaforo-fill" style="width:${s.hitRate}%;background:${s.hitRate >= 55 ? 'var(--green)' : s.hitRate >= 48 ? 'var(--yellow)' : 'var(--red)'}"></div></div></div><div class="prob-row-top" style="margin-top:10px;"><span>Brier score</span><span class="prob">${s.brier.toFixed(3)}</span></div><p style="margin:4px 0 0; font-size:0.8rem; color:${vColor}">${vsBaseNote(s.mejoraVsBase, s.baseRate)}</p>${mComp ? `<p style="margin:8px 0 0; padding-top:8px; border-top:1px dashed var(--line); font-size:0.8rem; color:${vsMercadoColor(mComp.mejora)}"><strong>vs. cuota real (${mComp.n}):</strong> ${mComp.texto}</p>` : ''}${rows ? `<h3 class="corner-team-title">Calibración</h3>${rows}` : ''}</div>`;
+  }).join('');
+  resultsSection.style.display = 'block';
+}
+
+function exportarComparacionCSV(filas) {
+  if (!filas.length) { alert('No hay partidos para exportar.'); return; }
+  const headers = [
+    'fecha','local','visitante','APP_local','APP_empate','APP_visitante','APP_over15','APP_over25','APP_over35','APP_btts',
+    'APP_corners_over75','APP_corners_over85','APP_corners_over95',
+    'REAL_goles_local','REAL_goles_visitante','REAL_total_goles','REAL_resultado',
+    'REAL_over15','REAL_over25','REAL_over35','REAL_btts',
+    'REAL_corners_local','REAL_corners_visitante','REAL_corners_total',
+    'CASA_odds_local','CASA_odds_empate','CASA_odds_visitante','CASA_fair_local','CASA_fair_empate','CASA_fair_visitante',
+    'CASA_odds_over15','CASA_odds_under15','CASA_fair_over15',
+    'CASA_odds_over25','CASA_odds_under25','CASA_fair_over25',
+    'CASA_odds_over35','CASA_odds_under35','CASA_fair_over35',
+    'CASA_odds_btts_si','CASA_odds_btts_no','CASA_fair_btts_si',
+  ];
+  const escapar = (v) => { if (v === null || v === undefined) return ''; const s = String(v); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const num = (v) => (v == null || !Number.isFinite(v)) ? '' : Number(v).toFixed(2);
+  const lineas = [headers.join(',')];
+  for (const f of filas) {
+    const dev3 = devigar3(f.casa.odds_local, f.casa.odds_empate, f.casa.odds_visitante);
+    const fairL = dev3 ? dev3[0] : null, fairE = dev3 ? dev3[1] : null, fairV = dev3 ? dev3[2] : null;
+    const fairO15 = devigar2(f.casa.odds_over15, f.casa.odds_under15);
+    const fairO25 = devigar2(f.casa.odds_over25, f.casa.odds_under25);
+    const fairO35 = devigar2(f.casa.odds_over35, f.casa.odds_under35);
+    const fairBttsSi = devigar2(f.casa.odds_btts_si, f.casa.odds_btts_no);
+    lineas.push([f.fecha, f.local, f.visitante, num(f.app.local), num(f.app.empate), num(f.app.visitante), num(f.app.over15), num(f.app.over25), num(f.app.over35), num(f.app.btts), num(f.app.corners_over75), num(f.app.corners_over85), num(f.app.corners_over95), f.real.goles_local, f.real.goles_visitante, f.real.total_goles, f.real.resultado, f.real.over15, f.real.over25, f.real.over35, f.real.btts, f.real.corners_local ?? '', f.real.corners_visitante ?? '', f.real.corners_total ?? '', f.casa.odds_local ?? '', f.casa.odds_empate ?? '', f.casa.odds_visitante ?? '', num(fairL), num(fairE), num(fairV), f.casa.odds_over15 ?? '', f.casa.odds_under15 ?? '', num(fairO15), f.casa.odds_over25 ?? '', f.casa.odds_under25 ?? '', num(fairO25), f.casa.odds_over35 ?? '', f.casa.odds_under35 ?? '', num(fairO35), f.casa.odds_btts_si ?? '', f.casa.odds_btts_no ?? '', num(fairBttsSi)].map(escapar).join(','));
+  }
+  const csv = '\uFEFF' + lineas.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const ligaSlug = String(historial?.liga || historial?.leagueKey || 'backtest').replace(/\s+/g, '_');
+  a.download = `comparacion_${ligaSlug}_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+exportBtn.addEventListener('click', () => exportarComparacionCSV(filasComparacion));
+
+const exportParamsBtn = document.getElementById('export-params-btn');
+if (exportParamsBtn) {
+  exportParamsBtn.addEventListener('click', () => {
+    AutoCalibrate.exportarParamsJSON();
+  });
 }
