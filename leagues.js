@@ -4,17 +4,17 @@
 
 export const LIGAS = {
   // === VERDES ===
-  "MLS": { "name": "🇺🇸 MLS (EEUU)", "goalsAvg": 3.00, "cornAvg": 9.9, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "green", "mercados": ["1X2", "BTTS"], "nota": "1X2 con +55% ROI." } },
-  "CPA": { "name": "🇨🇴 Categoría Primera A", "goalsAvg": 2.35, "cornAvg": 9.5, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["Over 1.5", "Over 2.5", "BTTS"], "nota": "Over 1.5 con +40% ROI." } },
-  "MXL": { "name": "🇲🇽 Liga MX", "goalsAvg": 2.70, "cornAvg": 9.6, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["Over 1.5"], "nota": "err 1.6%, Over 1.5 +36% ROI." } },
-  "FL1": { "name": "🇫🇷 Ligue 1", "goalsAvg": 2.70, "cornAvg": 9.4, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["Over 1.5"], "nota": "err 2.8%, Over 1.5 +30% ROI." } },
-  "BSA": { "name": "🇧🇷 Brasileirão A", "goalsAvg": 2.45, "cornAvg": 10.3, "cornR": 19, "markets": { "goles": false, "btts": false, "corn": true }, "betting": { "status": "green", "mercados": ["Over 1.5"], "nota": "err 5.2%, Over 1.5 +23.5% ROI." } },
-  "SUI1": { "name": "🇨🇭 Super League (Suiza)", "goalsAvg": 3.34, "cornAvg": 10.0, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["1X2"], "nota": "err 0.9%, 1X2 +57% ROI." } },
+  "MLS": { "name": "🇺🇸 MLS (EEUU)", "goalsAvg": 3.00, "cornAvg": 9.9, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "green", "mercados": ["1X2", "BTTS"], "nota": "Local +1.7% vs cuota. Stake 1%." } },
+  "CPA": { "name": "🇨🇴 Categoría Primera A", "goalsAvg": 2.35, "cornAvg": 9.5, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["1X2", "Over 1.5", "Over 2.5", "Over 3.5", "BTTS"], "nota": "Visitante +5.9% vs cuota. 4 mercados con edge. Stake 1%." } },
+  "MXL": { "name": "🇲🇽 Liga MX", "goalsAvg": 2.70, "cornAvg": 9.6, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["1X2", "Over 1.5"], "nota": "Over 1.5 +2.5%, Visitante +2.4% (muestra chica). Stake 0.5%." } },
+  "FL1": { "name": "🇫🇷 Ligue 1", "goalsAvg": 2.70, "cornAvg": 9.4, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "green", "mercados": ["Over 1.5", "Over 3.5"], "nota": "Over 1.5 +3.7% vs cuota (10 picks). Stake 2%." } },
+  "BSA": { "name": "🇧🇷 Brasileirão A", "goalsAvg": 2.45, "cornAvg": 10.3, "cornR": 19, "markets": { "goles": false, "btts": false, "corn": true }, "betting": { "status": "green", "mercados": ["Over 1.5", "Over 3.5"], "nota": "Over 1.5 +1.1% (17 picks), Over 3.5 +2.6%. Stake 1%." } },
 
   // === AMARILLAS ===
+  "SUI1": { "name": "🇨🇭 Super League (Suiza)", "goalsAvg": 3.34, "cornAvg": 10.0, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["Over 1.5"], "nota": "⚠️ modelo pierde a la cuota en todos los mercados (-6% a -20%). No apostar." } },
   "PPT": { "name": "🇵🇹 Liga Portugal", "goalsAvg": 2.60, "cornAvg": 9.4, "cornR": 17, "markets": { "goles": false, "btts": true, "corn": false }, "betting": { "status": "yellow", "mercados": ["Over 2.5", "BTTS"], "nota": "⚠️ err 11.7%. Solo Over 2.5 y BTTS." } },
-  "BSB": { "name": "🇧🇷 Brasileirão B", "goalsAvg": 2.30, "cornAvg": 9.2, "cornR": 16, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["1X2"], "nota": "⚠️ 1X2 con +10% ROI en 38 picks." } },
-  "JPL": { "name": "🇧🇪 Jupiler Pro League (Bélgica)", "goalsAvg": 2.90, "cornAvg": 9.8, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["Over 2.5"], "nota": "⚠️ err 9.6%, mercados con cuota dieron negativo." } },
+  "BSB": { "name": "🇧🇷 Brasileirão B", "goalsAvg": 2.30, "cornAvg": 9.2, "cornR": 16, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["1X2"], "nota": "⚠️ 1X2 +10% ROI en 38 picks, sin confirmar." } },
+  "JPL": { "name": "🇧🇪 Jupiler Pro League (Bélgica)", "goalsAvg": 2.90, "cornAvg": 9.8, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["Over 2.5"], "nota": "⚠️ err 9.6%, mercados con cuota negativos." } },
   "ELITE": { "name": "🇳🇴 Eliteserien (Noruega)", "goalsAvg": 2.94, "cornAvg": 9.6, "cornR": 17, "markets": { "goles": true, "btts": true, "corn": false }, "betting": { "status": "yellow", "mercados": ["1X2"], "nota": "⚠️ sin calibrar." } },
   "ALLSV": { "name": "🇸🇪 Allsvenskan (Suecia)", "goalsAvg": 2.83, "cornAvg": 9.4, "cornR": 16, "markets": { "goles": false, "btts": true, "corn": false }, "betting": { "status": "yellow", "mercados": ["1X2"], "nota": "⚠️ sin calibrar." } },
   "DED": { "name": "🇳🇱 Eredivisie (Países bajos)", "goalsAvg": 3.10, "cornAvg": 10.1, "cornR": 18, "markets": { "goles": true, "btts": true, "corn": true }, "betting": { "status": "yellow", "mercados": ["BTTS"], "nota": "⚠️ sin calibrar." } },
@@ -487,14 +487,15 @@ export const ML_MAX_WEIGHT = 0.6;
 export const FILTRO_EV = 1.05;
 export const SHRINK_ALPHA = 0.15;
 
-// Umbrales por liga — todos con umbralCorners: 75
+// Umbrales por liga. CPA ahora con umbral1x2=50 y umbralGoles=60 (era 55/65).
+// Córners todos a 75 (evita spam).
 export const UMBRALES_POR_LIGA = {
   PL:  { umbral1x2: 50, umbralGoles: 75, umbralCorners: 75, umbralBtss: 70, cornersVisitante: false },
   BSB: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: true },
   ARG: { umbral1x2: 55, umbralGoles: 65, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
   MLS: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 75, umbralBtss: 65, cornersVisitante: false },
   BSA: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 75, umbralBtss: 65, cornersVisitante: true },
-  CPA: { umbral1x2: 55, umbralGoles: 65, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
+  CPA: { umbral1x2: 50, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
   MXL: { umbral1x2: 50, umbralGoles: 65, umbralCorners: 75, umbralBtss: 65, cornersVisitante: true },
   ELC: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
   PPT: { umbral1x2: 45, umbralGoles: 60, umbralCorners: 75, umbralBtss: 60, cornersVisitante: false },
